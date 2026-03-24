@@ -160,16 +160,12 @@ async def strip_vercel_backend_prefix(request: Request, call_next):
     return await call_next(request)
 
 
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
-EXTRA_FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN_ALT", "http://localhost:5173")
-LOOPBACK_FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN_LOOPBACK", "http://127.0.0.1:5173")
-LOOPBACK_FRONTEND_ORIGIN_ALT = os.getenv("FRONTEND_ORIGIN_LOOPBACK_ALT", "http://127.0.0.1:3000")
-_cors_origins = [
-    FRONTEND_ORIGIN,
-    EXTRA_FRONTEND_ORIGIN,
-    LOOPBACK_FRONTEND_ORIGIN,
-    LOOPBACK_FRONTEND_ORIGIN_ALT,
-]
+_cors_origins = list(filter(None, [
+    os.getenv("FRONTEND_ORIGIN", "http://localhost:3000"),
+    os.getenv("FRONTEND_ORIGIN_ALT", "http://localhost:5173"),
+    os.getenv("FRONTEND_ORIGIN_LOOPBACK", "http://127.0.0.1:5173"),
+    os.getenv("FRONTEND_ORIGIN_LOOPBACK_ALT", "http://127.0.0.1:3000"),
+]))
 _vercel = os.getenv("VERCEL_URL")
 if _vercel:
     _cors_origins.append(f"https://{_vercel}")

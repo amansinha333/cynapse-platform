@@ -149,18 +149,34 @@ app.include_router(audit_router)
 app.include_router(billing_router)
 app.include_router(vault_router)
 
+
+@app.middleware("http")
+async def strip_vercel_backend_prefix(request: Request, call_next):
+    """When deployed behind Vercel's experimentalServices routePrefix /_/backend, strip it so routes match /api/..."""
+    path = request.scope.get("path", "")
+    prefix = "/_/backend"
+    if path.startswith(prefix):
+        request.scope["path"] = path[len(prefix):] or "/"
+    return await call_next(request)
+
+
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 EXTRA_FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN_ALT", "http://localhost:5173")
 LOOPBACK_FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN_LOOPBACK", "http://127.0.0.1:5173")
 LOOPBACK_FRONTEND_ORIGIN_ALT = os.getenv("FRONTEND_ORIGIN_LOOPBACK_ALT", "http://127.0.0.1:3000")
+_cors_origins = [
+    FRONTEND_ORIGIN,
+    EXTRA_FRONTEND_ORIGIN,
+    LOOPBACK_FRONTEND_ORIGIN,
+    LOOPBACK_FRONTEND_ORIGIN_ALT,
+]
+_vercel = os.getenv("VERCEL_URL")
+if _vercel:
+    _cors_origins.append(f"https://{_vercel}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        FRONTEND_ORIGIN,
-        EXTRA_FRONTEND_ORIGIN,
-        LOOPBACK_FRONTEND_ORIGIN,
-        LOOPBACK_FRONTEND_ORIGIN_ALT,
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Gemini-Key"],

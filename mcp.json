@@ -1,0 +1,25 @@
+{
+    "mcpServers": {
+        "google-stitch": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@google/stitch-mcp"
+            ],
+            "env": {
+                "STITCH_API_KEY": "AQ.Ab8RN6KlROW7dAARnjt_D4ZcG5-e_Igx0_1gry4nOI6FbuzNYA"
+            }
+        },
+        "pinecone": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-pinecone"
+            ],
+            "env": {
+                "PINECONE_API_KEY": "pcsk_6bTaZ7_ERiQyfiXWDYkxy9eqoJKdTATg1DrdkK3Tv3VyMJUMAcwrdzbri112WHd6rrZGcu",
+                "PINECONE_INDEX": "cynapse-compliance"
+            }
+        }
+    }
+}

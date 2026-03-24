@@ -1,0 +1,420 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f7f9fb;
+  color: #191c1e;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+.dark body {
+  background-color: #020617;
+  /* slate-950 */
+  color: #f1f5f9;
+}
+
+/* ───── Custom Scrollbar ───── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 99px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e293b;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* ───── Animations ───── */
+.animate-slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-fast {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .5;
+  }
+}
+
+.animate-pulse-fast {
+  animation: pulse-fast 1s infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background-size: 200% 100%;
+}
+
+/* ───── 3D Glassmorphism System ───── */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  box-shadow:
+    0 20px 60px rgba(36, 56, 156, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.dark .glass-card:hover {
+  box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* ───── Mesh Gradient Backgrounds ───── */
+.mesh-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+}
+
+.dark .mesh-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+}
+
+/* ───── 3D Perspective Container ───── */
+.perspective-container {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.card-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ───── Glow Effects ───── */
+.glow-indigo {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05);
+}
+
+.dark .glow-indigo {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2), 0 0 60px rgba(99, 102, 241, 0.1);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), 0 0 60px rgba(16, 185, 129, 0.05);
+}
+
+/* ───── Gradient Borders ───── */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.1));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+/* ───── Animated Gradient Text ───── */
+.gradient-text {
+  background: linear-gradient(135deg, #24389c, #6366f1, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ───── Subscription Card Shine ───── */
+@keyframes cardShine {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.card-shine:hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg,
+      transparent 33%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 66%);
+  background-size: 200% 100%;
+  animation: cardShine 1.5s ease-in-out;
+  pointer-events: none;
+}
+
+/* ───── Rich Text Editor ───── */
+.prose-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #64748b;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.prose-editor h2 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 24px 0 12px;
+  color: #24389c;
+  letter-spacing: -0.02em;
+}
+
+.prose-editor h3 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  color: #1e293b;
+}
+
+.prose-editor p {
+  margin: 12px 0;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.prose-editor ul,
+.prose-editor ol {
+  padding-left: 1.5rem;
+  margin: 12px 0;
+}
+
+.prose-editor li {
+  margin: 6px 0;
+}
+
+.prose-editor ul li {
+  list-style-type: disc;
+}
+
+.prose-editor ol li {
+  list-style-type: decimal;
+}
+
+.prose-editor blockquote {
+  border-left: 4px solid #24389c;
+  padding: 12px 20px;
+  margin: 16px 0;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.prose-editor pre {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 16px;
+  border-radius: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  margin: 16px 0;
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+}
+
+.prose-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.prose-editor th,
+.prose-editor td {
+  border: 1px solid #f1f5f9;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.prose-editor th {
+  background: #f8fafc;
+  font-weight: 700;
+  text-align: left;
+  color: #24389c;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+}
+
+.prose-editor hr {
+  border: none;
+  border-top: 1px solid #f1f5f9;
+  margin: 24px 0;
+}
+
+.prose-editor a {
+  color: #24389c;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+/* Dark mode prose */
+.dark .prose-editor h2 {
+  color: #818cf8;
+}
+
+.dark .prose-editor h3 {
+  color: #f1f5f9;
+}
+
+.dark .prose-editor p {
+  color: #94a3b8;
+}
+
+.dark .prose-editor blockquote {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-left-color: #6366f1;
+}
+
+.dark .prose-editor pre {
+  border-color: #334155;
+}
+
+.dark .prose-editor table {
+  background: #0f172a / 50%;
+}
+
+.dark .prose-editor th {
+  background: #1e293b;
+  color: #818cf8;
+}
+
+.dark .prose-editor th,
+.dark .prose-editor td {
+  border-color: #334155;
+}
+
+.dark .prose-editor hr {
+  border-top-color: #334155;
+}
+
+.dark .prose-editor a {
+  color: #818cf8;
+}

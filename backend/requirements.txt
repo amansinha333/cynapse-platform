@@ -1,0 +1,14 @@
+sqlalchemy[asyncio]
+aiosqlite
+fastapi
+uvicorn
+pydantic
+google-genai
+requests
+python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+cryptography
+stripe
+boto3
+pinecone

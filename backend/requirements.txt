@@ -3,6 +3,7 @@ aiosqlite
 fastapi
 uvicorn
 pydantic
+python-multipart
 google-genai
 requests
 python-dotenv

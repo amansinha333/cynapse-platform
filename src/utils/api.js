@@ -3,15 +3,15 @@
 // Real CRUD endpoints + AI Audit endpoints
 // ============================================================================
 
-// Production (Vercel): leave VITE_API_BASE_URL unset or "" so requests stay same-origin (/api → rewritten to backend).
-// Dev: defaults to local FastAPI. Use || only for undefined; empty string must stay empty.
+// Dev: local FastAPI. Production (Vercel): same-origin backend mount at /_/backend (see vercel.json experimentalServices).
+// You may override with VITE_API_BASE_URL (e.g. https://your-app.vercel.app/_/backend).
 const envApi = import.meta.env.VITE_API_BASE_URL;
 const API_BASE =
   envApi !== undefined && envApi !== ''
     ? envApi
     : import.meta.env.DEV
       ? 'http://localhost:8000'
-      : '';
+      : '/_/backend';
 const TOKEN_KEY = 'cynapse_jwt_token';
 const REFRESH_TOKEN_KEY = 'cynapse_refresh_token';
 

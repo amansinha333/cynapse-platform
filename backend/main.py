@@ -14,8 +14,11 @@ from datetime import datetime
 from dotenv import load_dotenv
 # Explicitly load from backend/.env if it exists
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-load_dotenv(_env_path, override=True)
-load_dotenv(override=True) # Fallback to cwd
+# Important for production hosts (Render/Vercel):
+# Do NOT override real environment variables with repo-local backend/.env values.
+# Otherwise CORS allowlist (FRONTEND_ORIGIN) and API keys can be silently replaced.
+load_dotenv(_env_path, override=False)
+load_dotenv(override=False)  # Fallback to cwd
 
 
 # Ensure backend dir is on sys.path for absolute imports
@@ -161,10 +164,10 @@ async def strip_vercel_backend_prefix(request: Request, call_next):
 
 
 _cors_origins = list(filter(None, [
-    os.getenv("FRONTEND_ORIGIN", "http://localhost:3000"),
-    os.getenv("FRONTEND_ORIGIN_ALT", "http://localhost:5173"),
-    os.getenv("FRONTEND_ORIGIN_LOOPBACK", "http://127.0.0.1:5173"),
-    os.getenv("FRONTEND_ORIGIN_LOOPBACK_ALT", "http://127.0.0.1:3000"),
+    (os.getenv("FRONTEND_ORIGIN", "http://localhost:3000") or '').strip(),
+    (os.getenv("FRONTEND_ORIGIN_ALT", "http://localhost:5173") or '').strip(),
+    (os.getenv("FRONTEND_ORIGIN_LOOPBACK", "http://127.0.0.1:5173") or '').strip(),
+    (os.getenv("FRONTEND_ORIGIN_LOOPBACK_ALT", "http://127.0.0.1:3000") or '').strip(),
 ]))
 _vercel = os.getenv("VERCEL_URL")
 if _vercel:
@@ -173,6 +176,8 @@ if _vercel:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    # Helps when the Vercel URL changes or when env values include minor formatting differences.
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Gemini-Key"],

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, Loader2, Settings, Users, Workflow } from 'lucide-react';
-import { createCheckoutSession, fetchCurrentUser, updateMyProfile } from '../utils/api';
+import { Bell, Eye, EyeOff, KeyRound, Loader2, Settings, Users, Workflow } from 'lucide-react';
+import { createCheckoutSession, fetchCurrentUser, getSecureKey, setSecureKey, updateMyProfile } from '../utils/api';
 import { useSearchParams } from 'react-router-dom';
+import { useProject } from '../context/ProjectContext';
 
 const NAV_ITEMS = [
   { id: 'general', label: 'General settings', group: 'Personal Settings' },
   { id: 'notifications', label: 'Notification settings', group: 'Personal Settings' },
+  { id: 'apikeys', label: 'API keys', group: 'Personal Settings' },
   { id: 'system', label: 'System', group: 'Admin Settings' },
   { id: 'apps', label: 'Apps', group: 'Admin Settings' },
   { id: 'spaces', label: 'Spaces', group: 'Admin Settings' },
@@ -16,6 +18,7 @@ const NAV_ITEMS = [
 ];
 
 export default function EnterpriseSettings() {
+  const { setGlobalApiKey, setPineconeKey, setSerpapiKey } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentContext = searchParams.get('context') || 'personal';
   const currentTab = searchParams.get('tab') || 'general';
@@ -23,6 +26,10 @@ export default function EnterpriseSettings() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+  const [keysLoading, setKeysLoading] = useState(false);
+  const [keysSaving, setKeysSaving] = useState(false);
+  const [showKeys, setShowKeys] = useState({ gemini: false, pinecone: false, serpapi: false });
+  const [apiKeysForm, setApiKeysForm] = useState({ gemini: '', pinecone: '', serpapi: '', pineconeIndex: 'cynapse-compliance' });
   const [billingLoading, setBillingLoading] = useState('');
   const [profileForm, setProfileForm] = useState({ fullName: '', email: '', avatar: null });
   const [generalPrefs, setGeneralPrefs] = useState({
@@ -38,7 +45,7 @@ export default function EnterpriseSettings() {
 
   const contextTabs = useMemo(() => {
     if (currentContext === 'personal') {
-      return NAV_ITEMS.filter((i) => ['general', 'notifications'].includes(i.id));
+      return NAV_ITEMS.filter((i) => ['general', 'notifications', 'apikeys'].includes(i.id));
     }
     if (currentContext === 'admin') {
       return NAV_ITEMS.filter((i) => ['system', 'apps', 'spaces', 'workitems', 'marketplace'].includes(i.id));
@@ -59,6 +66,57 @@ export default function EnterpriseSettings() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (currentTab !== 'apikeys') return;
+    const loadKeys = async () => {
+      try {
+        setError('');
+        setSuccess('');
+        setKeysLoading(true);
+        const [gem, pin, serp, idx] = await Promise.all([
+          getSecureKey('gemini_api_key'),
+          getSecureKey('pinecone_api_key'),
+          getSecureKey('search_api_key'),
+          getSecureKey('pinecone_index'),
+        ]);
+        setApiKeysForm({
+          gemini: gem?.value || '',
+          pinecone: pin?.value || '',
+          serpapi: serp?.value || '',
+          pineconeIndex: idx?.value || 'cynapse-compliance',
+        });
+      } catch (err) {
+        setError(String(err.message || 'Failed to load API keys'));
+      } finally {
+        setKeysLoading(false);
+      }
+    };
+    loadKeys();
+  }, [currentTab]);
+
+  const onSaveKeys = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    try {
+      setKeysSaving(true);
+      await Promise.all([
+        setSecureKey('gemini_api_key', apiKeysForm.gemini.trim()),
+        setSecureKey('pinecone_api_key', apiKeysForm.pinecone.trim()),
+        setSecureKey('search_api_key', apiKeysForm.serpapi.trim()),
+        setSecureKey('pinecone_index', apiKeysForm.pineconeIndex.trim() || 'cynapse-compliance'),
+      ]);
+      setGlobalApiKey(apiKeysForm.gemini.trim());
+      setPineconeKey(apiKeysForm.pinecone.trim());
+      setSerpapiKey(apiKeysForm.serpapi.trim());
+      setSuccess('API keys saved securely.');
+    } catch (err) {
+      setError(String(err.message || 'Failed to save API keys'));
+    } finally {
+      setKeysSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!contextTabs.some((t) => t.id === currentTab) && contextTabs.length > 0) {
@@ -153,6 +211,103 @@ export default function EnterpriseSettings() {
             </label>
           </div>
         </div>
+        );
+      case 'apikeys':
+        return (
+          <form onSubmit={onSaveKeys} className="space-y-4 max-w-3xl">
+            <h2 className="text-xl font-bold flex items-center gap-2"><KeyRound size={18} /> API keys</h2>
+            <p className="text-sm text-slate-500">
+              Keys are stored encrypted per-user. This is where you update Gemini/Pinecone/SerpAPI when the AI engine is degraded.
+            </p>
+
+            {keysLoading ? (
+              <div className="text-sm text-slate-500">Loading keys…</div>
+            ) : (
+              <div className="grid gap-4">
+                <label className="text-sm">
+                  <span className="block mb-1 text-slate-500">Gemini API Key</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type={showKeys.gemini ? 'text' : 'password'}
+                      value={apiKeysForm.gemini}
+                      onChange={(e) => setApiKeysForm((p) => ({ ...p, gemini: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+                      placeholder="AIza..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeys((s) => ({ ...s, gemini: !s.gemini }))}
+                      className="p-2 rounded-lg border bg-white dark:bg-slate-800"
+                      title={showKeys.gemini ? 'Hide' : 'Show'}
+                    >
+                      {showKeys.gemini ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="text-sm">
+                  <span className="block mb-1 text-slate-500">Pinecone API Key</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type={showKeys.pinecone ? 'text' : 'password'}
+                      value={apiKeysForm.pinecone}
+                      onChange={(e) => setApiKeysForm((p) => ({ ...p, pinecone: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+                      placeholder="pcsk_..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeys((s) => ({ ...s, pinecone: !s.pinecone }))}
+                      className="p-2 rounded-lg border bg-white dark:bg-slate-800"
+                      title={showKeys.pinecone ? 'Hide' : 'Show'}
+                    >
+                      {showKeys.pinecone ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="text-sm">
+                  <span className="block mb-1 text-slate-500">SerpAPI Key</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type={showKeys.serpapi ? 'text' : 'password'}
+                      value={apiKeysForm.serpapi}
+                      onChange={(e) => setApiKeysForm((p) => ({ ...p, serpapi: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+                      placeholder="serpapi..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeys((s) => ({ ...s, serpapi: !s.serpapi }))}
+                      className="p-2 rounded-lg border bg-white dark:bg-slate-800"
+                      title={showKeys.serpapi ? 'Hide' : 'Show'}
+                    >
+                      {showKeys.serpapi ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="text-sm">
+                  <span className="block mb-1 text-slate-500">Pinecone Index</span>
+                  <input
+                    type="text"
+                    value={apiKeysForm.pineconeIndex}
+                    onChange={(e) => setApiKeysForm((p) => ({ ...p, pineconeIndex: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+                    placeholder="cynapse-compliance"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={keysSaving}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold inline-flex items-center gap-2 disabled:opacity-60"
+                >
+                  {keysSaving ? (<><Loader2 size={14} className="animate-spin" />Saving…</>) : 'Save keys securely'}
+                </button>
+              </div>
+            )}
+          </form>
         );
       case 'system':
         return (

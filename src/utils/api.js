@@ -178,6 +178,16 @@ export const updateMyProfile = (formData) => request('/api/users/me', { method: 
 export const updateUserRole = (userId, role) => request(`/api/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
 
 // ---------------------------------------------------------------------------
+// SECURE SETTINGS (encrypted per-user keys)
+// ---------------------------------------------------------------------------
+export const getSecureKey = (keyName) => request(`/api/settings/keys/${encodeURIComponent(keyName)}`);
+export const setSecureKey = (keyName, value) =>
+  request(`/api/settings/keys/${encodeURIComponent(keyName)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  });
+
+// ---------------------------------------------------------------------------
 // BILLING
 // ---------------------------------------------------------------------------
 export const createCheckoutSession = (planTier) =>

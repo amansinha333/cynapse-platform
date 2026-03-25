@@ -7,10 +7,12 @@ from google import genai
 from google.genai import types
 from pinecone import Pinecone
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from auth import get_current_user
 from database import get_db
-from models import User
+from models import User, SecureSetting
+from utils.encryption import decrypt_value
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
@@ -26,8 +28,27 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     return "429" in text or "RESOURCE_EXHAUSTED" in text
 
 
-def _gemini_client() -> genai.Client:
-    return genai.Client(api_key=os.getenv("GEMINI_API_KEY", "").strip())
+async def _get_user_secret(db: AsyncSession, user_id: str, key_name: str) -> str:
+    result = await db.execute(
+        select(SecureSetting).where(
+            SecureSetting.user_id == user_id,
+            SecureSetting.key_name == key_name,
+        )
+    )
+    setting = result.scalar_one_or_none()
+    if not setting or not setting.encrypted_value:
+        return ""
+    try:
+        return decrypt_value(setting.encrypted_value).strip()
+    except Exception:
+        return ""
+
+
+async def _gemini_client(db: AsyncSession, current_user: User) -> genai.Client:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        api_key = await _get_user_secret(db, current_user.id, "gemini_api_key")
+    return genai.Client(api_key=api_key)
 
 
 def _safe_json(text: str, fallback: dict) -> dict:
@@ -44,7 +65,7 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         return {"status": "Warning", "framework": "N/A", "rule_violated": "Missing project_description", "recommendation": "Provide project description"}
 
     try:
-        client = _gemini_client()
+        client = await _gemini_client(db, current_user)
         embed = client.models.embed_content(
             model="gemini-embedding-001",
             contents=project_description,
@@ -54,8 +75,10 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         if not query_vector:
             return {"status": "Warning", "framework": "N/A", "rule_violated": "Embedding failed", "recommendation": "Try again"}
 
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY", "").strip())
-        index = pc.Index(os.getenv("PINECONE_INDEX", "cynapse-compliance"))
+        pinecone_key = os.getenv("PINECONE_API_KEY", "").strip() or await _get_user_secret(db, current_user.id, "pinecone_api_key")
+        pinecone_index = os.getenv("PINECONE_INDEX", "").strip() or await _get_user_secret(db, current_user.id, "pinecone_index") or "cynapse-compliance"
+        pc = Pinecone(api_key=pinecone_key)
+        index = pc.Index(pinecone_index)
         pinecone_result = index.query(vector=query_vector, top_k=5, include_metadata=True)
         chunks = []
         for match in pinecone_result.matches or []:
@@ -97,7 +120,7 @@ async def node2_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         return {"status": "Warning", "summary": "Missing project description", "recommendation": "Provide project_description"}
 
     try:
-        serp_key = os.getenv("SEARCH_API_KEY", "").strip()
+        serp_key = os.getenv("SEARCH_API_KEY", "").strip() or await _get_user_secret(db, current_user.id, "search_api_key")
         serp = requests.get(
             "https://serpapi.com/search",
             params={"engine": "google", "q": f"{project_description} compliance risk", "api_key": serp_key, "num": 3},
@@ -108,7 +131,7 @@ async def node2_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         tiny_results = [{"title": item.get("title", ""), "snippet": item.get("snippet", "")} for item in organic]
         truncated_news = "\n".join([f"- {item['title']}: {item['snippet']}" for item in tiny_results])
 
-        client = _gemini_client()
+        client = await _gemini_client(db, current_user)
         prompt = (
             "Based on this recent news/data, are there any new compliance risks for this project? "
             "Return a short JSON summary.\n\n"

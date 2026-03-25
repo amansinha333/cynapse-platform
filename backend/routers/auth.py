@@ -24,7 +24,7 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: str
     password: str
-    role: str = "Member"
+    role: str = "user"
     workspace_name: str = "Default Space"
 
 
@@ -77,8 +77,8 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
 
-    token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
+    token = create_access_token(user.id, role=user.role)
+    refresh_token = create_refresh_token(user.id, role=user.role)
     return {
         "access_token": token,
         "refresh_token": refresh_token,
@@ -103,8 +103,8 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
+    token = create_access_token(user.id, role=user.role)
+    refresh_token = create_refresh_token(user.id, role=user.role)
     return {
         "access_token": token,
         "refresh_token": refresh_token,
@@ -137,7 +137,7 @@ async def refresh_session(data: RefreshRequest, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=401, detail="User not found")
 
     return {
-        "access_token": create_access_token(user.id),
-        "refresh_token": create_refresh_token(user.id),
+        "access_token": create_access_token(user.id, role=user.role),
+        "refresh_token": create_refresh_token(user.id, role=user.role),
         "token_type": "bearer",
     }

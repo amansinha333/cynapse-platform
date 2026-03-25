@@ -3,8 +3,9 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
-  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck
+  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck, Database, Settings
 } from 'lucide-react';
+import { useProject } from '../context/ProjectContext';
 
 const TOP_NAV_ITEMS = [
   { to: '/dashboard/home', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,12 +15,14 @@ const TOP_NAV_ITEMS = [
   { to: '/dashboard/spaces', label: 'Spaces', icon: Compass },
   { to: '/dashboard/compliance', label: 'Compliance Hub', icon: ShieldCheck, badgeKey: 'compliance' },
   { to: '/dashboard/frameworks', label: 'Frameworks', icon: BookOpenCheck },
+  { to: '/dashboard/vault', label: 'Knowledge Vault', icon: Database },
   { to: '/dashboard/trustcenter', label: 'Trust Center', icon: Globe },
   { to: '/dashboard/insights', label: 'Insights', icon: TrendingUp },
 ];
 
 const BOTTOM_NAV_ITEMS = [
   { to: '/dashboard/auditlog', label: 'Audit Log', icon: ScrollText },
+  { to: '/dashboard/enterprise-settings', label: 'Enterprise Settings', icon: Settings, adminOnly: true },
 ];
 
 const navItemVariants = {
@@ -36,7 +39,12 @@ const navItemVariants = {
 };
 
 export default function Sidebar({ sidebarOpen = true, highRiskCount = 0 }) {
+  const { currentUser } = useProject();
   const [hoveredItem, setHoveredItem] = useState(null);
+
+  const visibleBottomNav = BOTTOM_NAV_ITEMS.filter(
+    (item) => !item.adminOnly || currentUser?.role === 'admin'
+  );
 
   return (
     <AnimatePresence>
@@ -158,7 +166,7 @@ export default function Sidebar({ sidebarOpen = true, highRiskCount = 0 }) {
             ))}
             <div className="mt-auto pt-4">
               <div className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-2">Utility</div>
-              {BOTTOM_NAV_ITEMS.map((item, index) => (
+              {visibleBottomNav.map((item, index) => (
                 <motion.div
                   key={item.to}
                   custom={TOP_NAV_ITEMS.length + index}

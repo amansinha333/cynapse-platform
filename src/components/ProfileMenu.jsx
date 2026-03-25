@@ -56,7 +56,10 @@ export default function ProfileMenu() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white text-sm font-black flex items-center justify-center">AS</div>
               <div>
-                <p className="font-semibold text-slate-900 dark:text-slate-100">{currentUser?.name || 'Aman Sinha'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{currentUser?.name || 'Aman Sinha'}</p>
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-wider">{currentUser?.role || 'user'}</span>
+                </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{email}</p>
               </div>
             </div>

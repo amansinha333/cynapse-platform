@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth import get_current_user
+from auth import get_current_user, require_roles
 from database import get_db
 from models import ComplianceDocument, User
 from utils.s3_storage import S3Manager
@@ -51,6 +51,26 @@ async def upload_document(
     db.add(doc)
     await db.flush()
     return {"id": doc.id, "filename": doc.filename, "s3_key": doc.s3_key, "created_at": doc.created_at.isoformat() if doc.created_at else ""}
+
+@router.delete("/{document_id}")
+async def delete_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    result = await db.execute(
+        select(ComplianceDocument).where(
+            ComplianceDocument.id == document_id,
+            ComplianceDocument.workspace_id == current_user.workspace_id,
+        )
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    await db.delete(doc)
+    await db.commit()
+    return {"status": "success", "message": f"Document {document_id} deleted"}
 
 
 @router.get("/documents")

@@ -203,3 +203,4 @@ export const uploadVaultDocument = (formData) =>
   request('/api/vault/upload', { method: 'POST', body: formData });
 export const fetchVaultDocuments = () => request('/api/vault/documents');
 export const fetchVaultDocumentUrl = (documentId) => request(`/api/vault/documents/${documentId}/url`);
+export const deleteVaultDocument = (documentId) => request(`/api/vault/${documentId}`, { method: 'DELETE' });

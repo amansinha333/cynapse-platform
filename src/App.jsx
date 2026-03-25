@@ -30,6 +30,7 @@ import ProfilePage from './pages/ProfilePage';
 import AuditLogView from './components/AuditLogView';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import VaultPage from './pages/VaultPage';
 
 function AppLayout() {
   const {
@@ -174,6 +175,7 @@ export default function App() {
           <Route path="spaces" element={<SpacesPage />} />
           <Route path="frameworks" element={<FrameworksPage />} />
           <Route path="frameworks/:frameworkId" element={<FrameworkDetailPage />} />
+          <Route path="vault" element={<VaultPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="auditlog" element={<AuditLogView />} />
           <Route path="*" element={<Navigate to="/dashboard/list" replace />} />
@@ -190,6 +192,7 @@ export default function App() {
         <Route path="/enterprise-settings" element={<Navigate to="/dashboard/enterprise-settings" replace />} />
         <Route path="/spaces" element={<Navigate to="/dashboard/spaces" replace />} />
         <Route path="/frameworks" element={<Navigate to="/dashboard/frameworks" replace />} />
+        <Route path="/vault" element={<Navigate to="/dashboard/vault" replace />} />
         <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
         <Route path="/auditlog" element={<Navigate to="/dashboard/auditlog" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

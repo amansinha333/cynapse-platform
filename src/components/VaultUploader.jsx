@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { fetchVaultDocumentUrl, fetchVaultDocuments, uploadVaultDocument } from '../utils/api';
+import { fetchVaultDocumentUrl, fetchVaultDocuments, uploadVaultDocument, deleteVaultDocument } from '../utils/api';
+import { useProject } from '../context/ProjectContext';
 
 export default function VaultUploader() {
+  const { currentUser } = useProject();
   const [docs, setDocs] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const isAdmin = currentUser?.role === 'admin';
 
   const loadDocs = async () => {
     try {
@@ -50,9 +53,20 @@ export default function VaultUploader() {
     }
   };
 
+  const handleDelete = async (docId) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    try {
+      await deleteVaultDocument(docId);
+      await loadDocs();
+    } catch (err) {
+      setError(String(err.message || 'Failed to delete document'));
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <div
+      {isAdmin && (
+        <div
         className="border-2 border-dashed rounded-xl p-5 text-center bg-slate-50 dark:bg-slate-800/50"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -73,6 +87,7 @@ export default function VaultUploader() {
           />
         </label>
       </div>
+      )}
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
@@ -91,9 +106,16 @@ export default function VaultUploader() {
                 <td className="px-3 py-2">{doc.filename}</td>
                 <td className="px-3 py-2">{doc.created_at ? new Date(doc.created_at).toLocaleString() : '-'}</td>
                 <td className="px-3 py-2">
-                  <button onClick={() => openDocument(doc.id)} className="text-indigo-600 font-semibold">
-                    Open secure link
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => openDocument(doc.id)} className="text-indigo-600 font-semibold hover:underline">
+                      Open secure link
+                    </button>
+                    {isAdmin && (
+                      <button onClick={() => handleDelete(doc.id)} className="text-rose-600 font-semibold hover:underline">
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

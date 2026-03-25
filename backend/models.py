@@ -98,7 +98,7 @@ class User(Base):
     email = Column(String, nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
-    role = Column(String, default="Member")
+    role = Column(String, default="user")
     status = Column(String, default="active")
     avatar_url = Column(Text, default="")
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)

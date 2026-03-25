@@ -38,7 +38,7 @@ def get_embedding_rest(text: str):
     return None
 
 router = APIRouter(prefix="/api/vault", tags=["vault"])
-MAX_UPLOAD_BYTES = int(os.getenv("VAULT_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+MAX_UPLOAD_BYTES = int(os.getenv("VAULT_MAX_UPLOAD_BYTES", str(200 * 1024 * 1024)))
 
 
 def _scan_document_or_raise(file_name: str, content: bytes):

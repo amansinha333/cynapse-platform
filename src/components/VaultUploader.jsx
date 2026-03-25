@@ -28,6 +28,11 @@ export default function VaultUploader() {
       setError('Only PDF files are accepted.');
       return;
     }
+    const oversized = pdfFiles.some(f => f.size > 209715200);
+    if (oversized) {
+      setError('Max file size: 200 MB.');
+      return;
+    }
     setError('');
     setUploading(true);
     try {
@@ -75,7 +80,7 @@ export default function VaultUploader() {
         }}
       >
         <p className="text-sm font-semibold">Drag and drop PDF files</p>
-        <p className="text-xs text-slate-500 mt-1 mb-3">Documents are encrypted at rest in S3 and opened via presigned URL.</p>
+        <p className="text-xs text-slate-500 mt-1 mb-3">Max file size: 200 MB. Documents are directly vectorized to Pinecone.</p>
         <label className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold cursor-pointer">
           {uploading ? 'Uploading...' : 'Select PDFs'}
           <input

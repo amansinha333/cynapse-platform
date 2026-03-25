@@ -29,7 +29,6 @@ import FrameworkDetailPage from './pages/FrameworkDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import AuditLogView from './components/AuditLogView';
 import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
 import VaultPage from './pages/VaultPage';
 
 function AppLayout() {
@@ -158,7 +157,6 @@ export default function App() {
     <ProjectProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<AppLayout />}>
           <Route index element={<Navigate to="list" replace />} />
           <Route path="list" element={<ListView />} />

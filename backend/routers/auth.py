@@ -158,3 +158,16 @@ async def make_admin(email: str, secret: str, db: AsyncSession = Depends(get_db)
     await db.commit()
     
     return {"message": f"Successfully elevated {email} to admin"}
+
+
+@router.get("/google")
+async def auth_google():
+    return {"message": "Google OAuth provider pending configuration"}
+
+@router.get("/apple")
+async def auth_apple():
+    return {"message": "Apple OAuth provider pending configuration"}
+
+@router.get("/sso")
+async def auth_sso():
+    return {"message": "SAML/SSO provider pending configuration"}

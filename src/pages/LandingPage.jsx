@@ -128,10 +128,10 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-6">
-            <a href="/login" className="hidden md:block text-[15px] font-semibold text-[#042f1f] hover:text-[#22c55e] transition-colors">
+            <a href="/dashboard" className="hidden md:block text-[15px] font-semibold text-[#042f1f] hover:text-[#22c55e] transition-colors">
               Sign in
             </a>
-            <a href="/login" className="bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-colors flex items-center gap-2 hover:scale-105 duration-300 shadow-sm shadow-green-500/20">
+            <a href="/dashboard" className="bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-colors flex items-center gap-2 hover:scale-105 duration-300 shadow-sm shadow-green-500/20">
               See a demo <ArrowRight className="w-4 h-4" />
             </a>
           </div>
@@ -176,7 +176,7 @@ export default function LandingPage() {
                   className="flex-1 bg-transparent py-2 outline-none text-[#042f1f] placeholder-slate-400 w-full text-base font-medium"
                 />
               </div>
-              <a href="/login" className="w-full sm:w-auto bg-[#facc15] text-[#422006] px-6 py-3 rounded-full text-[15px] font-bold hover:bg-[#eab308] transition-colors flex items-center justify-center gap-2 shrink-0 mt-2 sm:mt-0 hover:scale-105 duration-300">
+              <a href="/dashboard" className="w-full sm:w-auto bg-[#facc15] text-[#422006] px-6 py-3 rounded-full text-[15px] font-bold hover:bg-[#eab308] transition-colors flex items-center justify-center gap-2 shrink-0 mt-2 sm:mt-0 hover:scale-105 duration-300">
                 See a demo <ArrowRight className="w-4 h-4" />
               </a>
             </div>

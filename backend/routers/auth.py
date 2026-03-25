@@ -164,13 +164,22 @@ async def make_admin(email: str, secret: str, db: AsyncSession = Depends(get_db)
     return {"message": f"Successfully elevated {email} to admin"}
 
 
+from fastapi import Request
+
 @router.get("/google/login")
-async def google_login():
+async def google_login(request: Request):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=500, detail="Missing GOOGLE_CLIENT_ID")
     
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    # Try ENV var first, fallback to the dynamic base URL of the incoming request
+    backend_url = os.getenv("BACKEND_URL")
+    if not backend_url:
+        backend_url = str(request.base_url).rstrip("/")
+        # Render/production fix if behind a proxy without proxy_headers
+        if "onrender.com" in backend_url and backend_url.startswith("http://"):
+            backend_url = backend_url.replace("http://", "https://")
+            
     redirect_uri = f"{backend_url}/api/auth/google/callback"
     
     auth_url = (
@@ -184,10 +193,16 @@ async def google_login():
     return RedirectResponse(auth_url)
 
 @router.get("/google/callback")
-async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
+async def google_callback(code: str, request: Request, db: AsyncSession = Depends(get_db)):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    
+    backend_url = os.getenv("BACKEND_URL")
+    if not backend_url:
+        backend_url = str(request.base_url).rstrip("/")
+        if "onrender.com" in backend_url and backend_url.startswith("http://"):
+            backend_url = backend_url.replace("http://", "https://")
+            
     redirect_uri = f"{backend_url}/api/auth/google/callback"
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 

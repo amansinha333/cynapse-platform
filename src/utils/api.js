@@ -5,7 +5,7 @@
 
 // Dev: local FastAPI at localhost:8000.
 // Production: set VITE_API_BASE_URL to your hosted backend (e.g. https://cynapse-api.onrender.com).
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const TOKEN_KEY = 'cynapse_jwt_token';
 const REFRESH_TOKEN_KEY = 'cynapse_refresh_token';
 

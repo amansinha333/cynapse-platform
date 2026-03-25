@@ -180,7 +180,7 @@ async def google_login(request: Request):
         if "onrender.com" in backend_url and backend_url.startswith("http://"):
             backend_url = backend_url.replace("http://", "https://")
             
-    redirect_uri = f"{backend_url}/api/auth/google/callback"
+    redirect_uri = "https://cynapse-api.onrender.com/api/auth/google/callback"
     
     auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth?"
@@ -203,7 +203,7 @@ async def google_callback(code: str, request: Request, db: AsyncSession = Depend
         if "onrender.com" in backend_url and backend_url.startswith("http://"):
             backend_url = backend_url.replace("http://", "https://")
             
-    redirect_uri = f"{backend_url}/api/auth/google/callback"
+    redirect_uri = "https://cynapse-api.onrender.com/api/auth/google/callback"
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
     async with httpx.AsyncClient() as client:

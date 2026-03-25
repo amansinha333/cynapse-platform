@@ -30,6 +30,7 @@ import ProfilePage from './pages/ProfilePage';
 import AuditLogView from './components/AuditLogView';
 import LandingPage from './pages/LandingPage';
 import VaultPage from './pages/VaultPage';
+import OAuthCallback from './pages/OAuthCallback';
 
 function AppLayout() {
   const {
@@ -157,6 +158,7 @@ export default function App() {
     <ProjectProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/oauth-callback" element={<OAuthCallback />} />
         <Route path="/dashboard" element={<AppLayout />}>
           <Route index element={<Navigate to="list" replace />} />
           <Route path="list" element={<ListView />} />

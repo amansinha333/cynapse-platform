@@ -16,3 +16,5 @@ boto3
 pinecone
 PyPDF2
 aiofiles
+httpx
+authlib

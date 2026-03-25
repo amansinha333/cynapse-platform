@@ -1,6 +1,10 @@
+import os
 import uuid
+import urllib.parse
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -160,9 +164,95 @@ async def make_admin(email: str, secret: str, db: AsyncSession = Depends(get_db)
     return {"message": f"Successfully elevated {email} to admin"}
 
 
-@router.get("/google")
-async def auth_google():
-    return {"message": "Google OAuth provider pending configuration"}
+@router.get("/google/login")
+async def google_login():
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise HTTPException(status_code=500, detail="Missing GOOGLE_CLIENT_ID")
+    
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    redirect_uri = f"{backend_url}/api/auth/google/callback"
+    
+    auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth?"
+        "response_type=code&"
+        f"client_id={urllib.parse.quote(client_id)}&"
+        f"redirect_uri={urllib.parse.quote(redirect_uri)}&"
+        "scope=openid%20email%20profile&"
+        "access_type=offline"
+    )
+    return RedirectResponse(auth_url)
+
+@router.get("/google/callback")
+async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    redirect_uri = f"{backend_url}/api/auth/google/callback"
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+        )
+        if token_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch Google token")
+        
+        access_token = token_res.json().get("access_token")
+        
+        user_res = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        if user_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch user profile")
+            
+        user_info = user_res.json()
+        
+    email = user_info.get("email")
+    name = user_info.get("name", "Google User")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided by Google")
+        
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        workspace = (await db.execute(select(Workspace).where(Workspace.name == "Default Space"))).scalar_one_or_none()
+        if not workspace:
+            workspace = Workspace(
+                id=f"ws-{uuid.uuid4().hex[:10]}",
+                name="Default Space",
+                key=f"WS{uuid.uuid4().hex[:4].upper()}",
+            )
+            db.add(workspace)
+            await db.flush()
+            
+        user = User(
+            id=f"user-{uuid.uuid4().hex[:12]}",
+            email=email,
+            full_name=name,
+            hashed_password="oauth_managed_no_pass",
+            role="user",
+            status="active",
+            workspace_id=workspace.id,
+        )
+        db.add(user)
+        await db.flush()
+        
+    await db.commit()
+    
+    jwt_token = create_access_token(user.id, role=user.role)
+    refresh_token = create_refresh_token(user.id, role=user.role)
+    return RedirectResponse(url=f"{frontend_url}/oauth-callback?token={jwt_token}&refresh={refresh_token}")
 
 @router.get("/apple")
 async def auth_apple():

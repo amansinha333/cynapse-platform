@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,8 @@ import requests
 from PyPDF2 import PdfReader
 from pinecone import Pinecone
 from fastapi.responses import FileResponse
+from utils.websockets import dashboard_manager
+from ingest import recursive_split_with_parent_context
 
 def get_embedding_rest(text: str):
     """Bypasses SDK issues by calling the Gemini v1 REST API directly."""
@@ -51,6 +53,7 @@ def _scan_document_or_raise(file_name: str, content: bytes):
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
+    feature_id: str = Form(default=""),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -70,6 +73,13 @@ async def upload_document(
     with open(local_path, "wb") as f:
         f.write(content)
 
+    await dashboard_manager.broadcast({
+        "type": "audit_started",
+        "feature_id": feature_id or None,
+        "source": "vault_upload",
+        "message": "Background audit/vectorization started",
+    })
+
     # 2. Extract Text and Vectorize
     reader = PdfReader(io.BytesIO(content))
     all_vectors = []
@@ -79,19 +89,31 @@ async def upload_document(
         if not text: continue
         
         clean_text = " ".join(text.split())
-        if len(clean_text) < 100: continue
-        
-        max_chars = 8000
-        chunks = [clean_text[k : k + max_chars] for k in range(0, len(clean_text), max_chars)]
-        
-        for j, chunk_text in enumerate(chunks):
-            chunk_id = f"{file_id}-p{i}-c{j}"
-            vec = get_embedding_rest(chunk_text)
+        if len(clean_text) < 100:
+            continue
+
+        section_name = f"Page {i + 1}"
+        chunks = recursive_split_with_parent_context(
+            text=clean_text,
+            page_number=i + 1,
+            section_name=section_name,
+            source_name=file.filename or "document.pdf",
+        )
+
+        for chunk in chunks:
+            chunk_id = f"{file_id}-p{i}-c{chunk['chunk_index']}"
+            vec = get_embedding_rest(chunk["child_text"])
             if vec:
                 all_vectors.append({
                     "id": chunk_id,
                     "values": vec,
-                    "metadata": {"text": chunk_text, "source": file.filename or "document.pdf"}
+                    "metadata": {
+                        "text": chunk["child_text"],
+                        "parent_context": chunk["parent_context"],
+                        "source": chunk["source"],
+                        "page_number": chunk["page_number"],
+                        "section_name": chunk["section_name"],
+                    },
                 })
                 time.sleep(0.5)
 
@@ -119,6 +141,13 @@ async def upload_document(
     )
     db.add(doc)
     await db.flush()
+    await dashboard_manager.broadcast({
+        "type": "audit_completed",
+        "feature_id": feature_id or None,
+        "document_id": doc.id,
+        "source": "vault_upload",
+        "message": "Background audit/vectorization finished",
+    })
     return {"id": doc.id, "filename": doc.filename, "s3_key": doc.s3_key, "created_at": doc.created_at.isoformat() if doc.created_at else ""}
 
 @router.delete("/{document_id}")

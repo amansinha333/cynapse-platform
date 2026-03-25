@@ -8,8 +8,50 @@ services:
     rootDir: backend
     envVars:
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./cynapse.db
+        fromDatabase:
+          name: cynapse-db
+          property: connectionString
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: SETTINGS_ENCRYPTION_KEY
         generateValue: true
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: FRONTEND_ORIGIN_ALT
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX
+        sync: false
+      - key: SEARCH_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gemini-2.0-flash
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_SEED
+        sync: false
+      - key: STRIPE_PRICE_GROWTH
+        sync: false
+      - key: STRIPE_PRICE_ENTERPRISE
+        sync: false
+      - key: STRIPE_SUCCESS_URL
+        sync: false
+      - key: STRIPE_CANCEL_URL
+        sync: false
+databases:
+  - name: cynapse-db
+    databaseName: cynapse
+    user: cynapse

@@ -31,6 +31,8 @@ import AuditLogView from './components/AuditLogView';
 import LandingPage from './pages/LandingPage';
 import VaultPage from './pages/VaultPage';
 import OAuthCallback from './pages/OAuthCallback';
+import useWebSocket from './hooks/useWebSocket';
+import SystemHealthPage from './pages/SystemHealthPage';
 
 function AppLayout() {
   const {
@@ -43,6 +45,7 @@ function AppLayout() {
   } = useProject();
 
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const { isConnected: isLiveConnected, isAuditRunning } = useWebSocket();
   const isEngineer = currentUser?.role === 'Engineer';
   const planTier = currentUser?.planTier || 'Seed';
   const subscriptionStatus = (currentUser?.subscriptionStatus || 'active').toLowerCase();
@@ -86,6 +89,16 @@ function AppLayout() {
                     {subscriptionStatus.replace('_', ' ')}
                   </span>
                 )}
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border ${
+                  isAuditRunning
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : isLiveConnected
+                      ? 'bg-slate-100 text-slate-600 border-slate-200'
+                      : 'bg-rose-50 text-rose-600 border-rose-200'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isAuditRunning ? 'bg-emerald-500 animate-pulse' : isLiveConnected ? 'bg-slate-400' : 'bg-rose-500'}`} />
+                  Live
+                </span>
               </div>
             </div>
 
@@ -178,6 +191,7 @@ export default function App() {
           <Route path="vault" element={<VaultPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="auditlog" element={<AuditLogView />} />
+          <Route path="system-health" element={<SystemHealthPage />} />
           <Route path="*" element={<Navigate to="/dashboard/list" replace />} />
         </Route>
 
@@ -195,6 +209,7 @@ export default function App() {
         <Route path="/vault" element={<Navigate to="/dashboard/vault" replace />} />
         <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
         <Route path="/auditlog" element={<Navigate to="/dashboard/auditlog" replace />} />
+        <Route path="/system-health" element={<Navigate to="/dashboard/system-health" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ProjectProvider>

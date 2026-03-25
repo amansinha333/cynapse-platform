@@ -3,10 +3,10 @@ import { CheckCircle, Clock, ShieldAlert } from 'lucide-react';
 
 export const ComplianceBadge = ({ status }) => {
   const styles = { 
-    'Approved': 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400', 
-    'Pending': 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', 
-    'Blocked': 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400', 
-    'Approved (Node 1)': 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' 
+    'Approved': 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800', 
+    'Pending': 'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800', 
+    'Blocked': 'bg-rose-100 dark:bg-rose-900/40 text-rose-900 dark:text-rose-300 border border-rose-300 dark:border-rose-800', 
+    'Approved (Node 1)': 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800' 
   };
   const icons = { 
     'Approved': <CheckCircle size={10} />, 

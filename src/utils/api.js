@@ -72,6 +72,7 @@ async function refreshAccessToken() {
 // HEALTH
 // ---------------------------------------------------------------------------
 export const checkHealth = () => request('/api/health');
+export const fetchSystemHealth = () => request('/api/system/health');
 
 // ---------------------------------------------------------------------------
 // FEATURE CRUD

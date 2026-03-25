@@ -18,3 +18,6 @@ PyPDF2
 aiofiles
 httpx
 authlib
+psycopg2-binary
+asyncpg
+langchain-text-splitters

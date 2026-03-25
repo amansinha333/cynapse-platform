@@ -360,6 +360,73 @@ export default function FeatureModal() {
   const selectedEpic = (epics || []).find(e => e.id === formData.epicId);
   const allUsers = users || [];
 
+  const generateComplianceReport = async () => {
+    try {
+      const [{ default: jsPDF }] = await Promise.all([import('jspdf')]);
+      await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+      const reportTitle = 'Cynapse Enterprise Compliance Report';
+      const riceScore = calculateRice(formData.reach, formData.impact, formData.confidence, formData.effort);
+      const verdict = auditVerdict?.status || formData.complianceStatus || 'Pending';
+      const verdictText = auditVerdict?.overview || auditVerdict?.recommendation || 'No AI audit summary available.';
+      const citations = [
+        ...(auditVerdict?.source_citations || []),
+        ...(auditVerdict?.citations || []),
+      ];
+
+      doc.setFontSize(16);
+      doc.text(reportTitle, 14, 18);
+      doc.setFontSize(10);
+      doc.text(`Feature ID: ${formData.id || 'N/A'}`, 14, 26);
+      doc.text(`Feature: ${formData.title || 'Untitled Initiative'}`, 14, 32);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 38);
+
+      doc.autoTable({
+        startY: 46,
+        head: [['Metric', 'Value']],
+        body: [
+          ['RICE Score', String(riceScore)],
+          ['Compliance Verdict', String(verdict)],
+          ['Framework', String(auditVerdict?.framework || 'N/A')],
+          ['Rule / Finding', String(auditVerdict?.rule_violated || auditVerdict?.summary || 'N/A')],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [36, 56, 156] },
+        styles: { fontSize: 10 },
+      });
+
+      const summaryY = (doc.lastAutoTable?.finalY || 72) + 8;
+      doc.setFontSize(11);
+      doc.text('AI Audit Summary', 14, summaryY);
+      doc.setFontSize(10);
+      doc.text(doc.splitTextToSize(String(verdictText), 180), 14, summaryY + 6);
+
+      const citationRows = citations.length > 0
+        ? citations.map((c) => [
+            String(c.source || c.name || 'Unknown Source'),
+            String(c.page_number || c.page || '-'),
+            String(c.section_name || c.section || '-'),
+          ])
+        : [['No citations available', '-', '-']];
+
+      const citationY = summaryY + 28;
+      doc.autoTable({
+        startY: citationY,
+        head: [['Source', 'Page', 'Section']],
+        body: citationRows,
+        theme: 'striped',
+        headStyles: { fillColor: [51, 65, 85] },
+        styles: { fontSize: 9 },
+      });
+
+      doc.save(`compliance-report-${formData.id || 'feature'}.pdf`);
+      addHistoryEntry('Compliance Report Generated', `PDF report exported for ${formData.id || 'feature'}.`);
+    } catch (error) {
+      setAgentError(`Failed to generate compliance report: ${String(error?.message || error)}`);
+    }
+  };
+
   // --- Format timestamp for display ---
   const formatTime = (ts) => {
     if (!ts) return 'Recently';
@@ -949,6 +1016,12 @@ export default function FeatureModal() {
             )}
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={generateComplianceReport}
+              className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              Generate Compliance Report
+            </button>
             <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors">Cancel</button>
             {currentUser?.role !== 'Engineer' && (
               <button onClick={saveAndClose} className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 dark:bg-indigo-500 rounded shadow-sm hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors">Save Changes</button>

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
-  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck, Database, Settings
+  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck, Database, Settings, Activity
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 
@@ -22,6 +22,7 @@ const TOP_NAV_ITEMS = [
 
 const BOTTOM_NAV_ITEMS = [
   { to: '/dashboard/auditlog', label: 'Audit Log', icon: ScrollText },
+  { to: '/dashboard/system-health', label: 'System Health', icon: Activity },
   { to: '/dashboard/enterprise-settings', label: 'Enterprise Settings', icon: Settings, adminOnly: true },
 ];
 

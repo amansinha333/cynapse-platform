@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete as sql_delete
+from sqlalchemy import select, delete as sql_delete, text
 from contextlib import asynccontextmanager
 import asyncio
 import uuid
@@ -35,6 +35,7 @@ from routers.billing import router as billing_router
 from routers.vault import router as vault_router
 from utils.encryption import encrypt_value, decrypt_value
 from services.ai_service import run_node1_analysis, run_node2_analysis, run_rice_analysis
+from utils.websockets import dashboard_manager
 
 logger = logging.getLogger("cynapse")
 
@@ -247,7 +248,52 @@ class VendorCreate(BaseModel):
 # =============================================================================
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "engine": "Cynapse AI Core", "database": "SQLite (aiosqlite)"}
+    database_label = "PostgreSQL" if "postgresql" in os.getenv("DATABASE_URL", "").lower() else "SQLite (aiosqlite)"
+    return {"status": "ok", "engine": "Cynapse AI Core", "database": database_label}
+
+
+@app.websocket("/ws/dashboard")
+async def dashboard_ws(websocket: WebSocket):
+    await dashboard_manager.connect(websocket)
+    try:
+        await dashboard_manager.send_personal(
+            websocket,
+            {"type": "connected", "channel": "dashboard", "message": "Live governance socket connected"},
+        )
+        while True:
+            # Keep the connection alive and allow future client control messages.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        dashboard_manager.disconnect(websocket)
+    except Exception:
+        dashboard_manager.disconnect(websocket)
+
+
+@app.get("/api/system/health")
+async def system_health(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db_status = "down"
+    db_engine = "postgres" if "postgresql" in os.getenv("DATABASE_URL", "").lower() else "sqlite"
+    try:
+        await db.execute(text("SELECT 1"))
+        db_status = "up"
+    except Exception:
+        db_status = "down"
+
+    setting_rows = await db.execute(
+        select(SecureSetting).where(SecureSetting.user_id == current_user.id)
+    )
+    settings = {s.key_name: bool((s.encrypted_value or "").strip()) for s in setting_rows.scalars().all()}
+    pinecone_ready = bool(os.getenv("PINECONE_API_KEY", "").strip()) or settings.get("pinecone_api_key", False)
+    gemini_ready = bool(os.getenv("GEMINI_API_KEY", "").strip()) or settings.get("gemini_api_key", False)
+
+    return {
+        "database": {"engine": db_engine, "status": db_status},
+        "vector_store": {"provider": "pinecone", "status": "up" if pinecone_ready else "degraded"},
+        "ai_engine": {"provider": "gemini", "status": "up" if gemini_ready else "degraded"},
+    }
 
 
 # =============================================================================

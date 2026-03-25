@@ -80,28 +80,63 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         pc = Pinecone(api_key=pinecone_key)
         index = pc.Index(pinecone_index)
         pinecone_result = index.query(vector=query_vector, top_k=5, include_metadata=True)
-        chunks = []
+        parent_contexts = []
+        source_citations = []
         for match in pinecone_result.matches or []:
             meta = match.metadata or {}
-            chunks.append(meta.get("text", ""))
-        rag_context = "\n\n".join(chunks[:5])
+            parent = (meta.get("parent_context") or meta.get("text") or "").strip()
+            if parent:
+                parent_contexts.append(parent)
+            source_citations.append(
+                {
+                    "source": meta.get("source", "unknown"),
+                    "page_number": meta.get("page_number"),
+                    "section_name": meta.get("section_name", ""),
+                }
+            )
+        # Stitch using parent contexts for stronger retrieval grounding.
+        unique_parent_contexts = []
+        seen = set()
+        for ctx in parent_contexts:
+            signature = ctx[:200]
+            if signature in seen:
+                continue
+            seen.add(signature)
+            unique_parent_contexts.append(ctx)
+        rag_context = "\n\n".join(unique_parent_contexts[:5])
+        citations_block = "\n".join(
+            [
+                f"- {c.get('source', 'unknown')} | page={c.get('page_number')} | section={c.get('section_name', '')}"
+                for c in source_citations[:8]
+            ]
+        )
 
         prompt = (
             "You are a Compliance Auditor. Based strictly on the provided regulatory text, audit this project. "
             "Return a JSON object with: 'status' (Pass/Fail/Warning), 'framework' (e.g., RBI, GDPR), "
-            "'rule_violated', and 'recommendation'.\n\n"
+            "'rule_violated', 'recommendation', and 'source_citations' (source/page_number/section_name).\n\n"
             f"Project Description:\n{project_description}\n\n"
-            f"Regulatory Chunks:\n{rag_context}"
+            f"Regulatory Parent Context:\n{rag_context}\n\n"
+            f"Retrieved Source Metadata:\n{citations_block}"
         )
         response = client.models.generate_content(
             model=os.getenv("AI_MODEL", "gemini-2.0-flash"),
             contents=prompt,
             config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2),
         )
-        return _safe_json(
+        parsed = _safe_json(
             response.text,
-            {"status": "Warning", "framework": "N/A", "rule_violated": "Malformed AI output", "recommendation": "Retry"},
+            {
+                "status": "Warning",
+                "framework": "N/A",
+                "rule_violated": "Malformed AI output",
+                "recommendation": "Retry",
+                "source_citations": [],
+            },
         )
+        if "source_citations" not in parsed or not isinstance(parsed.get("source_citations"), list):
+            parsed["source_citations"] = source_citations[:5]
+        return parsed
     except Exception as exc:
         if _is_rate_limit_error(exc):
             return DEGRADED_RESPONSE
@@ -110,6 +145,7 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
             "framework": "N/A",
             "rule_violated": "Node 1 execution failed",
             "recommendation": str(exc)[:200],
+            "source_citations": [],
         }
 
 

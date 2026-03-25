@@ -1,6 +1,9 @@
 from sqlalchemy import Column, String, Integer, Float, Text, DateTime, JSON, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import JSONB
 from database import Base
+
+JSON_FIELD = JSON().with_variant(JSONB, "postgresql")
 
 
 class Feature(Base):
@@ -35,12 +38,12 @@ class Feature(Base):
     end_date = Column(String, default="")
 
     # JSON fields for complex nested data
-    comments = Column(JSON, default=list)
-    dependencies = Column(JSON, default=list)
-    history = Column(JSON, default=list)
-    attachments = Column(JSON, default=list)
-    attestation = Column(JSON, default=dict)
-    audit_results = Column(JSON, default=dict)  # Stores node1/node2 results
+    comments = Column(JSON_FIELD, default=list)
+    dependencies = Column(JSON_FIELD, default=list)
+    history = Column(JSON_FIELD, default=list)
+    attachments = Column(JSON_FIELD, default=list)
+    attestation = Column(JSON_FIELD, default=dict)
+    audit_results = Column(JSON_FIELD, default=dict)  # Stores node1/node2 results
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
@@ -123,8 +126,24 @@ class ComplianceDocument(Base):
     filename = Column(String, nullable=False)
     s3_key = Column(String, nullable=False, unique=True, index=True)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuditIntelligence(Base):
+    __tablename__ = "audit_intelligence"
+
+    id = Column(String, primary_key=True, index=True)
+    feature_id = Column(String, ForeignKey("features.id"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    node = Column(String, nullable=False, default="node1")  # node1 | node2
+    verdict = Column(String, nullable=False, default="Pending")
+    summary = Column(Text, default="")
+    citations = Column(JSON_FIELD, default=list)
+    payload = Column(JSON_FIELD, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
 
 class BillingWebhookEvent(Base):

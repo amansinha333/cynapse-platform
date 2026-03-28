@@ -9,8 +9,12 @@ import asyncio
 import uuid
 import sys
 import os
+import json
+import hashlib
 import logging
 from datetime import datetime
+import httpx
+from pinecone import Pinecone
 from dotenv import load_dotenv
 # Explicitly load from backend/.env if it exists
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -27,13 +31,13 @@ if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
 from database import get_db, init_db, async_session
-from models import Feature, Epic, Vendor, AuditEvent, User, Workspace, SecureSetting
-from auth import get_current_user, validate_email, require_roles
+from models import AuditEvent, AuditIntelligence, Epic, Feature, SecureSetting, User, Vendor, Workspace
+from auth import decode_token, get_current_user, validate_email, require_roles
 from routers.auth import router as auth_router
 from routers.audit import router as audit_router
 from routers.billing import router as billing_router
 from routers.vault import router as vault_router
-from utils.encryption import encrypt_value, decrypt_value
+from utils.encryption import decrypt_value, encrypt_value, ensure_encryption_key_is_secure
 from services.ai_service import run_node1_analysis, run_node2_analysis, run_rice_analysis
 from utils.websockets import dashboard_manager
 
@@ -133,6 +137,7 @@ DEFAULT_EPICS = [
 # =============================================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    ensure_encryption_key_is_secure()
     await init_db()
     # Seed default data if tables are empty
     async with async_session() as session:
@@ -152,6 +157,11 @@ app.include_router(auth_router)
 app.include_router(audit_router)
 app.include_router(billing_router)
 app.include_router(vault_router)
+
+
+@app.get("/")
+async def root_health():
+    return {"status": "ok", "service": "cynapse-api"}
 
 
 @app.middleware("http")
@@ -254,15 +264,43 @@ async def health_check():
 
 @app.websocket("/ws/dashboard")
 async def dashboard_ws(websocket: WebSocket):
-    await dashboard_manager.connect(websocket)
+    token = (websocket.query_params.get("token") or "").strip()
+    if not token:
+        await websocket.close(code=1008, reason="Missing websocket token")
+        return
+
+    try:
+        payload = decode_token(token)
+        user_id = str(payload.get("sub", "")).strip()
+        if not user_id:
+            await websocket.close(code=1008, reason="Invalid websocket token")
+            return
+    except Exception:
+        await websocket.close(code=1008, reason="Invalid websocket token")
+        return
+
+    await dashboard_manager.connect(websocket, user_id=user_id)
     try:
         await dashboard_manager.send_personal(
             websocket,
             {"type": "connected", "channel": "dashboard", "message": "Live governance socket connected"},
         )
         while True:
-            # Keep the connection alive and allow future client control messages.
-            await websocket.receive_text()
+            data = await websocket.receive_text()
+            if data == "pong":
+                dashboard_manager.touch_pong(websocket)
+                continue
+            if data == "ping":
+                dashboard_manager.touch_pong(websocket)
+                await websocket.send_json({"type": "pong"})
+                continue
+            try:
+                payload = json.loads(data)
+                if payload.get("type") == "pong":
+                    dashboard_manager.touch_pong(websocket)
+            except Exception:
+                # Ignore non-control messages for now.
+                continue
     except WebSocketDisconnect:
         dashboard_manager.disconnect(websocket)
     except Exception:
@@ -272,7 +310,6 @@ async def dashboard_ws(websocket: WebSocket):
 @app.get("/api/system/health")
 async def system_health(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     db_status = "down"
     db_engine = "postgres" if "postgresql" in os.getenv("DATABASE_URL", "").lower() else "sqlite"
@@ -282,12 +319,8 @@ async def system_health(
     except Exception:
         db_status = "down"
 
-    setting_rows = await db.execute(
-        select(SecureSetting).where(SecureSetting.user_id == current_user.id)
-    )
-    settings = {s.key_name: bool((s.encrypted_value or "").strip()) for s in setting_rows.scalars().all()}
-    pinecone_ready = bool(os.getenv("PINECONE_API_KEY", "").strip()) or settings.get("pinecone_api_key", False)
-    gemini_ready = bool(os.getenv("GEMINI_API_KEY", "").strip()) or settings.get("gemini_api_key", False)
+    pinecone_ready = bool(os.getenv("PINECONE_API_KEY", "").strip())
+    gemini_ready = bool(os.getenv("GEMINI_API_KEY", "").strip())
 
     return {
         "database": {"engine": db_engine, "status": db_status},
@@ -299,6 +332,279 @@ async def system_health(
 # =============================================================================
 # FEATURE CRUD
 # =============================================================================
+EMBEDDING_MODEL_CANDIDATES = [
+    ("v1beta", "models/gemini-embedding-001"),
+    ("v1beta", "models/gemini-embedding-2-preview"),
+    ("v1", "models/text-embedding-004"),
+]
+PINECONE_VECTOR_DIMENSION = int(os.getenv("PINECONE_VECTOR_DIMENSION", "768"))
+
+
+async def _get_user_secret(db: AsyncSession, user_id: str, key_name: str) -> str:
+    result = await db.execute(
+        select(SecureSetting).where(
+            SecureSetting.user_id == user_id,
+            SecureSetting.key_name == key_name,
+        )
+    )
+    setting = result.scalar_one_or_none()
+    if not setting or not setting.encrypted_value:
+        return ""
+    try:
+        return decrypt_value(setting.encrypted_value).strip()
+    except Exception:
+        return ""
+
+
+async def _resolve_runtime_ai_key(db: AsyncSession, current_user: User) -> str:
+    key = (os.getenv("GEMINI_API_KEY", "") or "").strip()
+    if key:
+        return key
+    return await _get_user_secret(db, current_user.id, "gemini_api_key")
+
+
+async def _resolve_runtime_pinecone_key(db: AsyncSession, current_user: User) -> str:
+    key = (os.getenv("PINECONE_API_KEY", "") or "").strip()
+    if key:
+        return key
+    return await _get_user_secret(db, current_user.id, "pinecone_api_key")
+
+
+async def _resolve_runtime_pinecone_index(db: AsyncSession, current_user: User) -> str:
+    index_name = (os.getenv("PINECONE_INDEX", "") or "").strip()
+    if index_name:
+        return index_name
+    fallback = await _get_user_secret(db, current_user.id, "pinecone_index")
+    return fallback or "cynapse-compliance"
+
+
+async def _gemini_embed_text(text: str, api_key: str) -> list[float]:
+    if not api_key:
+        raise RuntimeError("Gemini API key is required for hard-gate embedding.")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        for api_version, model_name in EMBEDDING_MODEL_CANDIDATES:
+            payload = {"model": model_name, "content": {"parts": [{"text": text}]}}
+            url = f"https://generativelanguage.googleapis.com/{api_version}/{model_name}:embedContent?key={api_key}"
+            response = await client.post(url, json=payload)
+            if response.status_code == 404:
+                continue
+            response.raise_for_status()
+            body = response.json()
+            values = ((body.get("embedding") or {}).get("values")) or []
+            if values:
+                return values
+            raise RuntimeError("Embedding response did not contain values.")
+    raise httpx.HTTPStatusError(
+        "No supported Gemini embedding model endpoint was found",
+        request=httpx.Request("POST", "https://generativelanguage.googleapis.com"),
+        response=httpx.Response(status_code=404),
+    )
+
+
+def _fit_vector_dimension(values: list[float], target_dim: int) -> list[float]:
+    if len(values) == target_dim:
+        return values
+    if len(values) > target_dim:
+        return values[:target_dim]
+    return values + [0.0] * (target_dim - len(values))
+
+
+def _extract_first_json_object(text_value: str) -> dict:
+    raw = (text_value or "").strip()
+    try:
+        return json.loads(raw)
+    except Exception:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(raw[start : end + 1])
+        raise
+
+
+async def _gemini_json_gate(prompt: str, api_key: str) -> dict:
+    primary_model = os.getenv("AI_MODEL", "gemini-2.0-flash").strip()
+    candidate_models = [primary_model, "gemini-2.5-flash"]
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.1,
+            "responseMimeType": "application/json",
+            "responseSchema": {
+                "type": "OBJECT",
+                "properties": {
+                    "is_violation": {"type": "BOOLEAN"},
+                    "reason": {"type": "STRING"},
+                    "citations": {
+                        "type": "ARRAY",
+                        "items": {"type": "STRING"},
+                    },
+                },
+                "required": ["is_violation", "reason", "citations"],
+            },
+        },
+    }
+    body = None
+    last_http_error: httpx.HTTPStatusError | None = None
+    async with httpx.AsyncClient(timeout=45) as client:
+        for model_candidate in candidate_models:
+            normalized_model = (
+                model_candidate if model_candidate.startswith("models/") else f"models/{model_candidate}"
+            )
+            endpoint = f"https://generativelanguage.googleapis.com/v1beta/{normalized_model}:generateContent?key={api_key}"
+            response = await client.post(endpoint, json=payload)
+            if response.status_code == 404:
+                continue
+            try:
+                response.raise_for_status()
+                body = response.json()
+                break
+            except httpx.HTTPStatusError as exc:
+                last_http_error = exc
+                break
+    if body is None:
+        if last_http_error:
+            raise last_http_error
+        raise httpx.HTTPStatusError(
+            "No supported Gemini model endpoint was found",
+            request=httpx.Request("POST", "https://generativelanguage.googleapis.com"),
+            response=httpx.Response(status_code=404),
+        )
+
+    text_value = (
+        body.get("candidates", [{}])[0]
+        .get("content", {})
+        .get("parts", [{}])[0]
+        .get("text", "{}")
+    )
+    parsed = _extract_first_json_object(text_value)
+    citations = parsed.get("citations")
+    if not isinstance(citations, list):
+        parsed["citations"] = []
+    parsed["is_violation"] = bool(parsed.get("is_violation", False))
+    parsed["reason"] = str(parsed.get("reason", "")).strip()
+    return parsed
+
+
+async def _create_audit_intelligence_record(
+    db: AsyncSession,
+    *,
+    feature_id: str,
+    workspace_id: str,
+    created_by: str,
+    verdict: str,
+    summary: str,
+    sentiment: str,
+    rice_score: float,
+    citations: list,
+    payload: dict,
+    commit: bool = True,
+) -> AuditIntelligence:
+    latest_hash_result = await db.execute(
+        select(AuditIntelligence.decision_hash)
+        .where(AuditIntelligence.workspace_id == workspace_id)
+        .order_by(AuditIntelligence.created_at.desc())
+        .limit(1)
+    )
+    previous_hash = latest_hash_result.scalar_one_or_none() or "genesis"
+    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    deterministic_payload = json.dumps(
+        {
+            "feature_id": feature_id,
+            "sentiment": sentiment,
+            "rice_score": rice_score,
+            "citations": citations,
+        },
+        sort_keys=True,
+    )
+    decision_hash = hashlib.sha256(f"{previous_hash}{deterministic_payload}{timestamp}".encode("utf-8")).hexdigest()
+    audit = AuditIntelligence(
+        id=f"audit-intel-{uuid.uuid4().hex[:12]}",
+        feature_id=feature_id,
+        workspace_id=workspace_id,
+        created_by=created_by,
+        node="hard_gate",
+        verdict=verdict,
+        summary=summary,
+        citations=citations,
+        payload=payload,
+        previous_hash=previous_hash,
+        decision_hash=decision_hash,
+    )
+    db.add(audit)
+    if commit:
+        await db.commit()
+    return audit
+
+
+async def _run_agentic_hard_gate(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    feature_title: str,
+    feature_description: str,
+) -> dict:
+    workspace_id = current_user.workspace_id or ""
+    if not workspace_id:
+        return {"is_violation": False, "reason": "No workspace context; hard-gate skipped.", "citations": []}
+
+    gemini_key = await _resolve_runtime_ai_key(db, current_user)
+    pinecone_key = await _resolve_runtime_pinecone_key(db, current_user)
+    pinecone_index = await _resolve_runtime_pinecone_index(db, current_user)
+    if not gemini_key or not pinecone_key:
+        return {
+            "is_violation": False,
+            "reason": "Missing AI/vector credentials; hard-gate executed in permissive mode.",
+            "citations": [],
+        }
+
+    proposed_text = f"Title: {feature_title}\nDescription: {feature_description}".strip()
+    query_vector = _fit_vector_dimension(await _gemini_embed_text(proposed_text, gemini_key), PINECONE_VECTOR_DIMENSION)
+    pc = Pinecone(api_key=pinecone_key)
+    index = pc.Index(pinecone_index)
+    query_result = await asyncio.to_thread(
+        index.query,
+        vector=query_vector,
+        top_k=3,
+        include_metadata=True,
+        filter={"workspace_id": {"$eq": workspace_id}},
+    )
+
+    policy_chunks: list[str] = []
+    citations: list[str] = []
+    for match in query_result.matches or []:
+        metadata = match.metadata or {}
+        chunk_text = (metadata.get("parent_context") or metadata.get("text") or "").strip()
+        if chunk_text:
+            policy_chunks.append(chunk_text)
+        source = metadata.get("source", "unknown")
+        page = metadata.get("page_number", "n/a")
+        section = metadata.get("section_name", "")
+        citations.append(f"{source} | page={page} | section={section}")
+
+    if not policy_chunks:
+        return {
+            "is_violation": False,
+            "reason": "No policy chunks found for workspace; feature allowed.",
+            "citations": [],
+        }
+
+    prompt = (
+        "Act as an enterprise compliance gatekeeper. "
+        "Here is a proposed product feature:\n"
+        f"{proposed_text}\n\n"
+        "Here are the governing corporate policies:\n"
+        f"{json.dumps(policy_chunks[:3], ensure_ascii=False)}\n\n"
+        "Does this feature explicitly violate these policies? "
+        "Return a JSON with strictly 'is_violation': boolean, 'reason': string, 'citations': list."
+    )
+    gate_result = await _gemini_json_gate(prompt, gemini_key)
+    # Keep model citations but guarantee traceable references from retrieval metadata.
+    model_citations = [str(item) for item in gate_result.get("citations", [])]
+    gate_result["citations"] = model_citations or citations
+    return gate_result
+
+
 def _feature_to_dict(f: Feature) -> dict:
     """Convert a Feature ORM instance to a frontend-compatible dict."""
     return {
@@ -353,6 +659,41 @@ async def get_feature(feature_id: str, db: AsyncSession = Depends(get_db), curre
 
 @app.post("/api/features")
 async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        hard_gate = await _run_agentic_hard_gate(
+            db,
+            current_user=current_user,
+            feature_title=(data.title or "").strip(),
+            feature_description=(data.description or "").strip(),
+        )
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "Hard-gate model request failed", "provider_status": exc.response.status_code},
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"error": f"Hard-gate execution failed: {exc}"}) from exc
+
+    if hard_gate.get("is_violation"):
+        await dashboard_manager.send_to_user(
+            current_user.id,
+            {
+                "type": "compliance_blocked",
+                "payload": {
+                    "reason": hard_gate.get("reason", "Policy violation detected"),
+                    "citations": hard_gate.get("citations", []),
+                },
+            },
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Feature blocked by compliance hard-gate",
+                "reason": hard_gate.get("reason", "Policy violation detected"),
+                "citations": hard_gate.get("citations", []),
+            },
+        )
+
     feature_id = data.id or f"CYN-{uuid.uuid4().hex[:6].upper()}"
 
     feature = Feature(
@@ -384,6 +725,30 @@ async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db)
     )
     db.add(feature)
     await db.flush()
+    workspace_id = (current_user.workspace_id or "").strip()
+    if not workspace_id:
+        raise HTTPException(status_code=400, detail="User must belong to a workspace to create features")
+    try:
+        await _create_audit_intelligence_record(
+            db,
+            feature_id=feature.id,
+            workspace_id=workspace_id,
+            created_by=current_user.id,
+            verdict="Approved",
+            summary=f"Feature creation passed hard-gate: {hard_gate.get('reason', 'No explicit violations found.')}",
+            sentiment="compliant",
+            rice_score=float(data.riceScore or data.rice_score or 0.0),
+            citations=hard_gate.get("citations", []),
+            payload={
+                "hard_gate": hard_gate,
+                "feature_title": feature.title,
+                "feature_description": feature.description,
+            },
+            commit=True,
+        )
+    except Exception:
+        await db.rollback()
+        raise
     return _feature_to_dict(feature)
 
 

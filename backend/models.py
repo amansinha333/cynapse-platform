@@ -142,8 +142,21 @@ class AuditIntelligence(Base):
     summary = Column(Text, default="")
     citations = Column(JSON_FIELD, default=list)
     payload = Column(JSON_FIELD, default=dict)
+    decision_hash = Column(String, nullable=False, default="genesis")
+    previous_hash = Column(String, nullable=False, default="genesis")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+
+class PolicyConflict(Base):
+    __tablename__ = "policy_conflicts"
+
+    id = Column(String, primary_key=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    new_document_id = Column(String, ForeignKey("compliance_documents.id"), nullable=False, index=True)
+    existing_document_id = Column(String, ForeignKey("compliance_documents.id"), nullable=False, index=True)
+    conflict_summary = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class BillingWebhookEvent(Base):

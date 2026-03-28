@@ -3,9 +3,11 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
-  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck, Database, Settings, Activity
+  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck,
+  Database, Settings, Activity, ChevronsLeft
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
+import { springs, easings } from '../utils/motion';
 
 const TOP_NAV_ITEMS = [
   { to: '/dashboard/home', label: 'Dashboard', icon: LayoutDashboard },
@@ -39,7 +41,113 @@ const navItemVariants = {
   }
 };
 
-export default function Sidebar({ sidebarOpen = true, highRiskCount = 0 }) {
+function NavTooltip({ label, show }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, x: -6, scale: 0.95 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: -6, scale: 0.95 }}
+          transition={{ duration: 0.15, ease: easings.outExpo }}
+          className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl pointer-events-none"
+        >
+          {label}
+          <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45" />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskCount }) {
+  return (
+    <motion.div
+      custom={index}
+      variants={navItemVariants}
+      initial="initial"
+      animate="animate"
+      whileHover={expanded ? 'hover' : undefined}
+      onHoverStart={() => setHoveredItem(item.to)}
+      onHoverEnd={() => setHoveredItem(null)}
+      className="relative"
+    >
+      <NavLink
+        to={item.to}
+        end={item.to === '/dashboard/list'}
+        className={({ isActive }) =>
+          `flex items-center ${expanded ? 'gap-3 px-4' : 'justify-center px-0'} py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
+            isActive
+              ? 'text-[#24389c] dark:text-indigo-400'
+              : 'text-slate-500 dark:text-slate-400 hover:text-[#191c1e] dark:hover:text-slate-200'
+          }`
+        }
+      >
+        {({ isActive }) => (
+          <>
+            {isActive && (
+              <motion.div
+                layoutId="activeNavBg"
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.1)',
+                }}
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              />
+            )}
+            {hoveredItem === item.to && !isActive && (
+              <motion.div
+                layoutId="hoverNavBg"
+                className="absolute inset-0 rounded-xl"
+                style={{ background: 'rgba(248, 250, 252, 0.8)' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              />
+            )}
+            <div className="relative shrink-0 z-10">
+              <item.icon size={18} className={`transition-colors duration-200 ${isActive ? 'text-[#24389c]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+              {!expanded && item.badgeKey === 'compliance' && highRiskCount > 0 && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white z-20"
+                />
+              )}
+            </div>
+            <AnimatePresence>
+              {expanded && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="truncate relative z-10 overflow-hidden whitespace-nowrap"
+                >
+                  {item.label}
+                </motion.span>
+              )}
+            </AnimatePresence>
+            {expanded && item.badgeKey === 'compliance' && highRiskCount > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="ml-auto relative z-10 bg-[#24389c] text-white text-[10px] font-black px-2 py-0.5 rounded-full ring-4 ring-indigo-50 dark:ring-indigo-900/30"
+              >
+                {highRiskCount}
+              </motion.span>
+            )}
+          </>
+        )}
+      </NavLink>
+      {!expanded && <NavTooltip label={item.label} show={hoveredItem === item.to} />}
+    </motion.div>
+  );
+}
+
+export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 0 }) {
   const { currentUser } = useProject();
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -48,157 +156,154 @@ export default function Sidebar({ sidebarOpen = true, highRiskCount = 0 }) {
   );
 
   return (
-    <AnimatePresence>
-      {sidebarOpen && (
-        <motion.aside
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 256, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="glass shrink-0 hidden lg:flex flex-col relative z-30 overflow-hidden"
-          style={{
-            background: 'rgba(255,255,255,0.8)',
-            backdropFilter: 'blur(24px) saturate(180%)',
-            borderRight: '1px solid rgba(226, 232, 240, 0.6)',
-          }}
-        >
-          {/* Mesh gradient overlay */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: `
-              radial-gradient(ellipse at 30% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 100%, rgba(139, 92, 246, 0.05) 0%, transparent 60%)
-            `
-          }} />
+    <motion.aside
+      animate={{ width: sidebarOpen ? 256 : 64 }}
+      transition={{ duration: 0.3, ease: easings.outExpo }}
+      className="glass shrink-0 hidden lg:flex flex-col relative z-30 overflow-hidden"
+      style={{
+        background: 'rgba(255,255,255,0.8)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        borderRight: '1px solid rgba(226, 232, 240, 0.6)',
+      }}
+    >
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: `
+          radial-gradient(ellipse at 30% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+          radial-gradient(ellipse at 70% 100%, rgba(139, 92, 246, 0.05) 0%, transparent 60%)
+        `
+      }} />
 
-          {/* ── Brand Header ── */}
-          <div className="px-6 py-8 relative z-10">
-            <motion.div
-              className="flex items-center gap-3"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            >
+      {/* Brand Header */}
+      <div className={`${sidebarOpen ? 'px-6' : 'px-0 flex justify-center'} py-8 relative z-10 transition-[padding] duration-300`}>
+        <motion.div
+          className="flex items-center gap-3"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        >
+          <motion.div
+            whileHover={{ scale: 1.08, rotateY: 12 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #24389c, #6366f1, #8b5cf6)',
+              boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
+            }}
+          >
+            <Network size={20} className="text-white" />
+          </motion.div>
+          <AnimatePresence>
+            {sidebarOpen && (
               <motion.div
-                whileHover={{ scale: 1.08, rotateY: 12 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, #24389c, #6366f1, #8b5cf6)',
-                  boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
-                }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.2, ease: easings.outExpo }}
+                className="overflow-hidden whitespace-nowrap"
               >
-                <Network size={20} className="text-white" />
-              </motion.div>
-              <div>
                 <div className="text-lg font-black gradient-text tracking-tighter leading-none font-['Manrope',_sans-serif]">CYNAPSE</div>
                 <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-1">Enterprise</div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* ── Navigation ── */}
-          <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto custom-scrollbar pt-2 relative z-10 flex flex-col">
-            <div className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-3">Core Work</div>
-            {TOP_NAV_ITEMS.map((item, index) => (
-              <motion.div
-                key={item.to}
-                custom={index}
-                variants={navItemVariants}
-                initial="initial"
-                animate="animate"
-                whileHover="hover"
-                onHoverStart={() => setHoveredItem(item.to)}
-                onHoverEnd={() => setHoveredItem(null)}
-              >
-                <NavLink
-                  to={item.to}
-                  end={item.to === '/dashboard/list'}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
-                      isActive
-                        ? 'text-[#24389c] dark:text-indigo-400'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-[#191c1e] dark:hover:text-slate-200'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {/* Active background indicator */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="activeNavBg"
-                          className="absolute inset-0 rounded-xl"
-                          style={{
-                            background: 'rgba(99, 102, 241, 0.08)',
-                            border: '1px solid rgba(99, 102, 241, 0.1)',
-                          }}
-                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                        />
-                      )}
-
-                      {/* Hover glow */}
-                      {hoveredItem === item.to && !isActive && (
-                        <motion.div
-                          layoutId="hoverNavBg"
-                          className="absolute inset-0 rounded-xl"
-                          style={{ background: 'rgba(248, 250, 252, 0.8)' }}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        />
-                      )}
-
-                      <item.icon size={18} className={`shrink-0 relative z-10 transition-colors duration-200 ${isActive ? 'text-[#24389c]' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                      <span className="truncate relative z-10">{item.label}</span>
-                      {item.badgeKey === 'compliance' && highRiskCount > 0 && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="ml-auto relative z-10 bg-[#24389c] text-white text-[10px] font-black px-2 py-0.5 rounded-full ring-4 ring-indigo-50 dark:ring-indigo-900/30"
-                        >
-                          {highRiskCount}
-                        </motion.span>
-                      )}
-                    </>
-                  )}
-                </NavLink>
               </motion.div>
-            ))}
-            <div className="mt-auto pt-4">
-              <div className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-2">Utility</div>
-              {visibleBottomNav.map((item, index) => (
-                <motion.div
-                  key={item.to}
-                  custom={TOP_NAV_ITEMS.length + index}
-                  variants={navItemVariants}
-                  initial="initial"
-                  animate="animate"
-                  whileHover="hover"
-                  onHoverStart={() => setHoveredItem(item.to)}
-                  onHoverEnd={() => setHoveredItem(null)}
-                >
-                  <NavLink
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
-                        isActive
-                          ? 'text-[#24389c] dark:text-indigo-400 bg-indigo-50/70 dark:bg-indigo-900/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-[#191c1e] dark:hover:text-slate-200'
-                      }`
-                    }
-                  >
-                    <item.icon size={18} className="shrink-0 relative z-10 text-slate-400 group-hover:text-slate-600" />
-                    <span className="truncate relative z-10">{item.label}</span>
-                  </NavLink>
-                </motion.div>
-              ))}
-            </div>
-          </nav>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
 
-          {/* ── Footer ── */}
-          <div className="p-6 relative z-10">
+      {/* Navigation */}
+      <nav className={`flex-1 ${sidebarOpen ? 'px-4' : 'px-2'} space-y-0.5 overflow-y-auto custom-scrollbar pt-2 relative z-10 flex flex-col transition-[padding] duration-300`}>
+        <AnimatePresence>
+          {sidebarOpen && (
             <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-3"
+            >
+              Core Work
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {TOP_NAV_ITEMS.map((item, index) => (
+          <NavItem
+            key={item.to}
+            item={item}
+            index={index}
+            expanded={sidebarOpen}
+            hoveredItem={hoveredItem}
+            setHoveredItem={setHoveredItem}
+            highRiskCount={highRiskCount}
+          />
+        ))}
+
+        <div className="mt-auto pt-4">
+          <AnimatePresence>
+            {sidebarOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-2"
+              >
+                Utility
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {visibleBottomNav.map((item, index) => (
+            <NavItem
+              key={item.to}
+              item={item}
+              index={TOP_NAV_ITEMS.length + index}
+              expanded={sidebarOpen}
+              hoveredItem={hoveredItem}
+              setHoveredItem={setHoveredItem}
+              highRiskCount={0}
+            />
+          ))}
+        </div>
+      </nav>
+
+      {/* Collapse / Expand Toggle */}
+      {onToggle && (
+        <div className={`${sidebarOpen ? 'px-4' : 'px-2'} py-2 relative z-10 transition-[padding] duration-300`}>
+          <motion.button
+            onClick={onToggle}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            className={`w-full flex items-center ${sidebarOpen ? 'justify-start gap-2 px-4' : 'justify-center'} py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold`}
+          >
+            <motion.div
+              animate={{ rotate: sidebarOpen ? 0 : 180 }}
+              transition={springs.snappy}
+            >
+              <ChevronsLeft size={16} />
+            </motion.div>
+            <AnimatePresence>
+              {sidebarOpen && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden whitespace-nowrap"
+                >
+                  Collapse
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className={`${sidebarOpen ? 'p-6' : 'p-2 flex justify-center'} relative z-10 transition-[padding] duration-300`}>
+        <AnimatePresence mode="wait">
+          {sidebarOpen ? (
+            <motion.div
+              key="expanded-footer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               whileHover={{ scale: 1.02 }}
               className="rounded-2xl p-4 glass-card"
             >
@@ -207,9 +312,24 @@ export default function Sidebar({ sidebarOpen = true, highRiskCount = 0 }) {
                 System Instance v3.4.1
               </div>
             </motion.div>
-          </div>
-        </motion.aside>
-      )}
-    </AnimatePresence>
+          ) : (
+            <motion.div
+              key="collapsed-footer"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springs.gentle}
+              className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center"
+              title="System Instance v3.4.1"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.aside>
   );
 }

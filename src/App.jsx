@@ -1,9 +1,11 @@
 import React from 'react';
-import { Routes, Route, Navigate, Link, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, Outlet, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Network, Sun, Moon, Menu, Plus, Search,
   Download, FileText
 } from 'lucide-react';
+import { pageTransition } from './utils/motion';
 
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import Sidebar from './components/Sidebar';
@@ -34,6 +36,22 @@ import OAuthCallback from './pages/OAuthCallback';
 import useWebSocket from './hooks/useWebSocket';
 import SystemHealthPage from './pages/SystemHealthPage';
 
+function AnimatedOutlet() {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={pageTransition.initial}
+        animate={pageTransition.animate}
+        exit={pageTransition.exit}
+      >
+        <Outlet />
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 function AppLayout() {
   const {
     currentUser, isDarkMode, setIsDarkMode,
@@ -58,7 +76,7 @@ function AppLayout() {
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900">
       {/* ==== Sidebar ==== */}
-      <Sidebar sidebarOpen={sidebarOpen} highRiskCount={highRiskCount} />
+      <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(o => !o)} highRiskCount={highRiskCount} />
 
       {/* ==== Main Content ==== */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -155,7 +173,7 @@ function AppLayout() {
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
           <div className="max-w-7xl mx-auto">
-            <Outlet />
+            <AnimatedOutlet />
           </div>
         </main>
       </div>

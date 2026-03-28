@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, closestCenter
@@ -7,8 +8,8 @@ import { Lock, ShieldAlert, AlertTriangle, Flame } from 'lucide-react';
 import { ComplianceBadge } from './Badges';
 import { COLUMNS, GATED_COLUMNS } from '../config/constants';
 import { useProject } from '../context/ProjectContext';
+import { springs, easings } from '../utils/motion';
 
-// --- Draggable Card ---
 function DraggableCard({ feature, openEditModal, epics, isDragOverlay, currentUser }) {
   const isBlocked = feature.complianceStatus === 'Blocked';
   const epic = epics?.find(e => e.id === feature.epicId);
@@ -19,20 +20,24 @@ function DraggableCard({ feature, openEditModal, epics, isDragOverlay, currentUs
     disabled: currentUser?.role === 'Engineer' || isBlocked,
   });
 
-  const baseClass = `bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-xl shadow-slate-200/40 dark:shadow-none transition-all duration-300 group ${
-    isBlocked
-      ? 'opacity-60 grayscale-[0.5]'
-      : 'hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-none hover:-translate-y-1'
-  } ${isDragging && !isDragOverlay ? 'opacity-20 scale-95' : 'opacity-100'}`;
-
   return (
-    <div
+    <motion.div
       ref={isDragOverlay ? undefined : setNodeRef}
       {...(isDragOverlay ? {} : { ...listeners, ...attributes })}
-      className={`${baseClass} ${isDragOverlay ? 'shadow-2xl ring-4 ring-[#24389c]/10 dark:ring-indigo-500/20 rotate-1 scale-105 z-50' : 'cursor-grab active:cursor-grabbing border border-transparent'}`}
+      layout={!isDragOverlay}
+      initial={isDragOverlay ? false : { opacity: 0, scale: 0.95, y: 8 }}
+      animate={{
+        opacity: isDragging && !isDragOverlay ? 0.2 : 1,
+        scale: isDragging && !isDragOverlay ? 0.95 : 1,
+        y: 0,
+      }}
+      transition={springs.gentle}
+      whileHover={!isDragging && !isDragOverlay && !isBlocked ? { y: -4 } : undefined}
+      className={`bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-xl shadow-slate-200/40 dark:shadow-none ${
+        isBlocked ? 'opacity-60 grayscale-[0.5]' : ''
+      } ${isDragOverlay ? 'shadow-2xl ring-4 ring-[#24389c]/10 dark:ring-indigo-500/20 rotate-1 scale-105 z-50' : 'cursor-grab active:cursor-grabbing border border-transparent'}`}
       onClick={() => !isDragging && openEditModal(feature)}
     >
-      {/* Epic Label */}
       {epic && (
         <div className="flex items-center gap-2 mb-3">
           <div className="w-1.5 h-4 rounded-full" style={{ background: epic.color }}></div>
@@ -51,7 +56,6 @@ function DraggableCard({ feature, openEditModal, epics, isDragOverlay, currentUs
 
       <h4 className="font-bold text-[#191c1e] dark:text-slate-100 text-[15px] mb-4 line-clamp-2 leading-[1.4] group-hover:text-[#24389c] dark:group-hover:text-indigo-400 transition-colors">{feature.title}</h4>
 
-      {/* Dependencies indicator */}
       {feature.dependencies?.length > 0 && (
         <div className="text-[9px] font-black text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full mb-4 inline-flex items-center gap-1.5 uppercase tracking-wider">
           <AlertTriangle size={10} /> {feature.dependencies.length} blockages
@@ -66,12 +70,11 @@ function DraggableCard({ feature, openEditModal, epics, isDragOverlay, currentUs
           RICE {feature.riceScore}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-// --- Droppable Column ---
-function DroppableColumn({ id, features, openEditModal, epics, isOverValid, isOverInvalid, currentUser }) {
+function DroppableColumn({ id, features, openEditModal, epics, isOverValid, isOverInvalid, currentUser, flash }) {
   const { isOver, setNodeRef } = useDroppable({ id });
   const count = features.filter(f => f.status === id).length;
 
@@ -83,8 +86,21 @@ function DroppableColumn({ id, features, openEditModal, epics, isOverValid, isOv
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[320px] flex flex-col rounded-[2.5rem] p-4 transition-all duration-500 ${bgClass}`}
+      className={`relative flex-1 min-w-[320px] flex flex-col rounded-[2.5rem] p-4 transition-all duration-500 ${bgClass}`}
     >
+      {/* Drop pulse overlay */}
+      <AnimatePresence>
+        {flash && (
+          <motion.div
+            initial={{ opacity: 0.35 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="absolute inset-0 rounded-[2.5rem] bg-emerald-400/15 pointer-events-none z-10"
+          />
+        )}
+      </AnimatePresence>
+
       <div className="flex justify-between mb-6 px-4 py-2">
         <div className="flex items-center gap-3">
           <h3 className="font-black text-[#24389c] dark:text-indigo-400 text-[11px] uppercase tracking-[0.2em]">{id}</h3>
@@ -94,7 +110,15 @@ function DroppableColumn({ id, features, openEditModal, epics, isOverValid, isOv
             </span>
           )}
         </div>
-        <span className="bg-white dark:bg-slate-800 text-[#24389c] dark:text-indigo-400 text-[11px] font-black px-3 py-1 rounded-full shadow-sm">{count}</span>
+        <motion.span
+          key={count}
+          initial={{ scale: 1.3, opacity: 0.5 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={springs.snappy}
+          className="bg-white dark:bg-slate-800 text-[#24389c] dark:text-indigo-400 text-[11px] font-black px-3 py-1 rounded-full shadow-sm"
+        >
+          {count}
+        </motion.span>
       </div>
       <div className="space-y-4 overflow-y-auto px-1 pb-16 custom-scrollbar flex-1 scroll-smooth">
         {features.filter(f => f.status === id).map(feature => (
@@ -105,12 +129,12 @@ function DroppableColumn({ id, features, openEditModal, epics, isOverValid, isOv
   );
 }
 
-// --- Main Board ---
 export default function BoardView() {
   const { filteredFeatures: features, openEditModal, moveFeature, epics, currentUser } = useProject();
   const [activeId, setActiveId] = useState(null);
   const [gateError, setGateError] = useState(null);
   const [invalidDropTarget, setInvalidDropTarget] = useState(null);
+  const [flashColumn, setFlashColumn] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -150,7 +174,6 @@ export default function BoardView() {
 
     if (!feature || feature.status === targetColumn) return;
 
-    // HARD-GATE ENFORCEMENT
     if (feature.complianceStatus === 'Blocked' && GATED_COLUMNS.includes(targetColumn)) {
       setGateError({
         featureId: feature.id,
@@ -161,29 +184,44 @@ export default function BoardView() {
       return;
     }
 
-    // Valid move
     moveFeature(feature.id, targetColumn);
+    setFlashColumn(targetColumn);
+    setTimeout(() => setFlashColumn(null), 700);
   };
 
   return (
-    <div className="space-y-6 animate-fade-in relative h-full flex flex-col">
+    <div className="space-y-6 relative h-full flex flex-col">
       {/* Hard-Gate Error Banner */}
-      {gateError && (
-        <div className="bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-900/50 rounded-3xl p-6 flex items-start gap-5 shadow-2xl shadow-rose-200/20 dark:shadow-none animate-slide-in relative z-50">
-          <div className="p-3 bg-[#24389c] rounded-2xl text-white shrink-0 shadow-lg shadow-indigo-200 dark:shadow-none"><Lock size={20} /></div>
-          <div className="flex-1">
-            <h4 className="text-[12px] font-black text-[#24389c] dark:text-indigo-300 uppercase tracking-widest">Protocol Restriction</h4>
-            <p className="text-sm font-bold text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">{gateError.message}</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3 font-black uppercase tracking-widest">{gateError.featureId} // ACCESS DENIED</p>
-          </div>
-          <button
-            onClick={() => setGateError(null)}
-            className="text-slate-400 hover:text-[#24389c] dark:hover:text-indigo-300 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700 shadow-sm"
+      <AnimatePresence>
+        {gateError && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-900/50 rounded-3xl p-6 flex items-start gap-5 shadow-2xl shadow-rose-200/20 dark:shadow-none relative z-50"
           >
-            Acknowledge
-          </button>
-        </div>
-      )}
+            <motion.div
+              className="p-3 bg-[#24389c] rounded-2xl text-white shrink-0 shadow-lg shadow-indigo-200 dark:shadow-none"
+              animate={{ rotate: [0, -5, 5, -3, 0] }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Lock size={20} />
+            </motion.div>
+            <div className="flex-1">
+              <h4 className="text-[12px] font-black text-[#24389c] dark:text-indigo-300 uppercase tracking-widest">Protocol Restriction</h4>
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">{gateError.message}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3 font-black uppercase tracking-widest">{gateError.featureId} // ACCESS DENIED</p>
+            </div>
+            <button
+              onClick={() => setGateError(null)}
+              className="text-slate-400 hover:text-[#24389c] dark:hover:text-indigo-300 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700 shadow-sm"
+            >
+              Acknowledge
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* DnD Board */}
       <DndContext
@@ -204,11 +242,11 @@ export default function BoardView() {
               currentUser={currentUser}
               isOverValid={activeFeature && invalidDropTarget !== col && activeFeature.status !== col}
               isOverInvalid={invalidDropTarget === col}
+              flash={flashColumn === col}
             />
           ))}
         </div>
 
-        {/* Drag Overlay — floating preview */}
         <DragOverlay dropAnimation={{ duration: 300, easing: 'cubic-bezier(0.18, 0.89, 0.32, 1.28)' }}>
           {activeFeature ? (
             <div className="w-[320px]">

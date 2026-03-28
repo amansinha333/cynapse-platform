@@ -455,12 +455,11 @@ export default function FeatureModal() {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex justify-end"
-      initial={{ backgroundColor: 'rgba(15, 23, 42, 0)' }}
-      animate={{ backgroundColor: 'rgba(15, 23, 42, 0.4)' }}
-      exit={{ backgroundColor: 'rgba(15, 23, 42, 0)' }}
-      transition={{ duration: 0.3 }}
+      initial={{ backgroundColor: 'rgba(15, 23, 42, 0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(8px)' }}
+      exit={{ backgroundColor: 'rgba(15, 23, 42, 0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClose}
-      style={{ backdropFilter: 'blur(2px)' }}
     >
       <motion.div
         className="w-full max-w-5xl h-full shadow-2xl flex flex-col overflow-hidden"
@@ -469,10 +468,10 @@ export default function FeatureModal() {
           backdropFilter: 'blur(24px) saturate(180%)',
           borderLeft: '1px solid rgba(226, 232, 240, 0.6)',
         }}
-        initial={{ x: '100%', opacity: 0.5 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: '100%', opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        initial={{ x: '100%', opacity: 0, scale: 0.96 }}
+        animate={{ x: 0, opacity: 1, scale: 1 }}
+        exit={{ x: '80%', opacity: 0, scale: 0.97 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26 }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

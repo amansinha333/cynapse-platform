@@ -436,6 +436,19 @@ export default function FeatureModal() {
     } catch { return 'Recently'; }
   };
 
+  const degradedBackendReason = String(
+    auditVerdict?.message ||
+    auditVerdict?.error ||
+    auditVerdict?.detail ||
+    auditVerdict?.detailedAnalysis ||
+    auditVerdict?.summary ||
+    ''
+  ).trim();
+  const degradedSignals = `${String(auditVerdict?.status || '')} ${degradedBackendReason}`.toLowerCase();
+  const isQuotaDegraded = ['429', 'resource_exhausted', 'quota'].some((token) =>
+    degradedSignals.includes(token)
+  );
+
   // ==============================================
   // RENDER
   // ==============================================
@@ -564,10 +577,12 @@ export default function FeatureModal() {
                             </div>
                             <div>
                               <h4 className="text-sm font-extrabold text-amber-900 dark:text-amber-200 uppercase tracking-wide">
-                                API Quota Exhausted
+                                {isQuotaDegraded ? 'API Quota Exhausted' : 'AI Service Degraded'}
                               </h4>
                               <p className="mt-1 text-sm text-amber-900/90 dark:text-amber-200/90">
-                                The AI engine is temporarily offline due to API rate limits. Please update your API key in the platform settings or try again later.
+                                {isQuotaDegraded
+                                  ? 'The AI engine is temporarily offline due to API rate limits. Please update your API key in the platform settings or try again later.'
+                                  : (degradedBackendReason || 'The AI engine is currently running in degraded mode. Please check backend diagnostics and retry.')}
                               </p>
                             </div>
                           </div>

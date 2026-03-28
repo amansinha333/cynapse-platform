@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List, Any, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete as sql_delete, text
 from contextlib import asynccontextmanager
@@ -348,10 +348,13 @@ async def _get_user_secret(db: AsyncSession, user_id: str, key_name: str) -> str
         )
     )
     setting = result.scalar_one_or_none()
-    if not setting or not setting.encrypted_value:
+    if not setting:
+        return ""
+    encrypted_value = cast(str, getattr(setting, "encrypted_value", "") or "")
+    if not encrypted_value:
         return ""
     try:
-        return decrypt_value(setting.encrypted_value).strip()
+        return decrypt_value(encrypted_value).strip()
     except Exception:
         return ""
 
@@ -360,21 +363,21 @@ async def _resolve_runtime_ai_key(db: AsyncSession, current_user: User) -> str:
     key = (os.getenv("GEMINI_API_KEY", "") or "").strip()
     if key:
         return key
-    return await _get_user_secret(db, current_user.id, "gemini_api_key")
+    return await _get_user_secret(db, cast(str, current_user.id), "gemini_api_key")
 
 
 async def _resolve_runtime_pinecone_key(db: AsyncSession, current_user: User) -> str:
     key = (os.getenv("PINECONE_API_KEY", "") or "").strip()
     if key:
         return key
-    return await _get_user_secret(db, current_user.id, "pinecone_api_key")
+    return await _get_user_secret(db, cast(str, current_user.id), "pinecone_api_key")
 
 
 async def _resolve_runtime_pinecone_index(db: AsyncSession, current_user: User) -> str:
     index_name = (os.getenv("PINECONE_INDEX", "") or "").strip()
     if index_name:
         return index_name
-    fallback = await _get_user_secret(db, current_user.id, "pinecone_index")
+    fallback = await _get_user_secret(db, cast(str, current_user.id), "pinecone_index")
     return fallback or "cynapse-compliance"
 
 
@@ -544,7 +547,7 @@ async def _run_agentic_hard_gate(
     feature_title: str,
     feature_description: str,
 ) -> dict:
-    workspace_id = current_user.workspace_id or ""
+    workspace_id = cast(str, current_user.workspace_id or "")
     if not workspace_id:
         return {"is_violation": False, "reason": "No workspace context; hard-gate skipped.", "citations": []}
 
@@ -562,17 +565,18 @@ async def _run_agentic_hard_gate(
     query_vector = _fit_vector_dimension(await _gemini_embed_text(proposed_text, gemini_key), PINECONE_VECTOR_DIMENSION)
     pc = Pinecone(api_key=pinecone_key)
     index = pc.Index(pinecone_index)
+    pinecone_filter: Any = {"workspace_id": {"$eq": workspace_id}}
     query_result = await asyncio.to_thread(
         index.query,
         vector=query_vector,
         top_k=3,
         include_metadata=True,
-        filter={"workspace_id": {"$eq": workspace_id}},
+        filter=pinecone_filter,
     )
-
     policy_chunks: list[str] = []
     citations: list[str] = []
-    for match in query_result.matches or []:
+    matches = cast(list[Any], getattr(query_result, "matches", []) or [])
+    for match in matches:
         metadata = match.metadata or {}
         chunk_text = (metadata.get("parent_context") or metadata.get("text") or "").strip()
         if chunk_text:
@@ -676,7 +680,7 @@ async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db)
 
     if hard_gate.get("is_violation"):
         await dashboard_manager.send_to_user(
-            current_user.id,
+            cast(str, current_user.id),
             {
                 "type": "compliance_blocked",
                 "payload": {
@@ -731,9 +735,9 @@ async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db)
     try:
         await _create_audit_intelligence_record(
             db,
-            feature_id=feature.id,
+            feature_id=cast(str, feature.id),
             workspace_id=workspace_id,
-            created_by=current_user.id,
+            created_by=cast(str, current_user.id),
             verdict="Approved",
             summary=f"Feature creation passed hard-gate: {hard_gate.get('reason', 'No explicit violations found.')}",
             sentiment="compliant",
@@ -758,31 +762,32 @@ async def update_feature(feature_id: str, data: FeatureCreate, db: AsyncSession 
     feature = result.scalar_one_or_none()
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
+    feature_any: Any = feature
 
-    feature.title = data.title or feature.title
-    feature.description = data.description or feature.description
-    feature.region = data.region or feature.region
-    feature.industry = data.industry or feature.industry
-    feature.status = data.status or feature.status
-    feature.reach = data.reach
-    feature.impact = data.impact
-    feature.confidence = data.confidence
-    feature.effort = data.effort
-    feature.rice_score = data.riceScore or data.rice_score or feature.rice_score
-    feature.compliance_status = data.complianceStatus or data.compliance_status or feature.compliance_status
-    feature.assignee = data.assignee or feature.assignee
-    feature.priority = data.priority or feature.priority
-    feature.votes = data.votes
-    feature.epic_id = data.epicId or data.epic_id or feature.epic_id
-    feature.prd_html = data.prd_html or feature.prd_html
-    feature.start_date = data.startDate or data.start_date or feature.start_date
-    feature.end_date = data.endDate or data.end_date or feature.end_date
-    feature.comments = data.comments if data.comments else feature.comments
-    feature.dependencies = data.dependencies if data.dependencies else feature.dependencies
-    feature.history = data.history if data.history else feature.history
-    feature.attachments = data.attachments if data.attachments else feature.attachments
-    feature.attestation = data.attestation if data.attestation else feature.attestation
-    feature.audit_results = data.audit_results if data.audit_results else feature.audit_results
+    feature_any.title = data.title or feature_any.title
+    feature_any.description = data.description or feature_any.description
+    feature_any.region = data.region or feature_any.region
+    feature_any.industry = data.industry or feature_any.industry
+    feature_any.status = data.status or feature_any.status
+    feature_any.reach = data.reach
+    feature_any.impact = data.impact
+    feature_any.confidence = data.confidence
+    feature_any.effort = data.effort
+    feature_any.rice_score = data.riceScore or data.rice_score or feature_any.rice_score
+    feature_any.compliance_status = data.complianceStatus or data.compliance_status or feature_any.compliance_status
+    feature_any.assignee = data.assignee or feature_any.assignee
+    feature_any.priority = data.priority or feature_any.priority
+    feature_any.votes = data.votes
+    feature_any.epic_id = data.epicId or data.epic_id or feature_any.epic_id
+    feature_any.prd_html = data.prd_html or feature_any.prd_html
+    feature_any.start_date = data.startDate or data.start_date or feature_any.start_date
+    feature_any.end_date = data.endDate or data.end_date or feature_any.end_date
+    feature_any.comments = data.comments if data.comments else feature_any.comments
+    feature_any.dependencies = data.dependencies if data.dependencies else feature_any.dependencies
+    feature_any.history = data.history if data.history else feature_any.history
+    feature_any.attachments = data.attachments if data.attachments else feature_any.attachments
+    feature_any.attestation = data.attestation if data.attestation else feature_any.attestation
+    feature_any.audit_results = data.audit_results if data.audit_results else feature_any.audit_results
 
     await db.flush()
     return _feature_to_dict(feature)
@@ -845,7 +850,7 @@ async def list_audit_events(db: AsyncSession = Depends(get_db), current_user: Us
     events = result.scalars().all()
     return [{
         "id": e.id,
-        "timestamp": e.timestamp.isoformat() if e.timestamp else "",
+        "timestamp": e.timestamp.isoformat() if e.timestamp is not None else "",
         "user": e.user,
         "role": e.role,
         "type": e.type,
@@ -1033,9 +1038,10 @@ async def api_rice(req: Request, current_user: User = Depends(get_current_user))
 @app.get("/api/users/me")
 async def get_me(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     workspace = None
-    if current_user.workspace_id:
+    workspace_id = cast(Optional[str], current_user.workspace_id)
+    if workspace_id:
         workspace = (
-            await db.execute(select(Workspace).where(Workspace.id == current_user.workspace_id))
+            await db.execute(select(Workspace).where(Workspace.id == workspace_id))
         ).scalar_one_or_none()
     return {
         "id": current_user.id,
@@ -1046,7 +1052,7 @@ async def get_me(db: AsyncSession = Depends(get_db), current_user: User = Depend
         "avatar_url": current_user.avatar_url,
         "plan_tier": workspace.plan_tier if workspace else "Seed",
         "subscription_status": workspace.subscription_status if workspace else "canceled",
-        "created_at": current_user.created_at.isoformat() if current_user.created_at else "",
+        "created_at": current_user.created_at.isoformat() if current_user.created_at is not None else "",
     }
 
 
@@ -1064,11 +1070,12 @@ async def update_me(
 
     email_owner = await db.execute(select(User).where(User.email == normalized_email))
     existing = email_owner.scalar_one_or_none()
-    if existing and existing.id != current_user.id:
+    if existing is not None and cast(str, existing.id) != cast(str, current_user.id):
         raise HTTPException(status_code=409, detail="Email already in use")
 
-    current_user.full_name = full_name.strip()
-    current_user.email = normalized_email
+    current_user_any: Any = current_user
+    current_user_any.full_name = full_name.strip()
+    current_user_any.email = normalized_email
 
     if avatar:
         uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "avatars")
@@ -1079,7 +1086,7 @@ async def update_me(
         content = await avatar.read()
         with open(out_path, "wb") as file_obj:
             file_obj.write(content)
-        current_user.avatar_url = f"/uploads/avatars/{file_name}"
+        current_user_any.avatar_url = f"/uploads/avatars/{file_name}"
 
     await db.flush()
     return {
@@ -1104,7 +1111,7 @@ async def list_users(db: AsyncSession = Depends(get_db), current_user: User = De
             "role": u.role,
             "status": u.status,
             "avatar_url": u.avatar_url,
-            "created_at": u.created_at.isoformat() if u.created_at else "",
+            "created_at": u.created_at.isoformat() if u.created_at is not None else "",
         }
         for u in users
     ]
@@ -1125,7 +1132,8 @@ async def update_user_role(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    target.role = new_role
+    target_any: Any = target
+    target_any.role = new_role
     await db.flush()
     return {"id": target.id, "role": target.role}
 
@@ -1148,7 +1156,8 @@ async def upsert_encrypted_setting(
     )
     setting = result.scalar_one_or_none()
     if setting:
-        setting.encrypted_value = encrypted
+        setting_any: Any = setting
+        setting_any.encrypted_value = encrypted
     else:
         setting = SecureSetting(
             id=f"setting-{uuid.uuid4().hex[:12]}",
@@ -1174,6 +1183,9 @@ async def get_encrypted_setting(
         )
     )
     setting = result.scalar_one_or_none()
-    if not setting or not setting.encrypted_value:
+    if not setting:
         return {"value": ""}
-    return {"value": decrypt_value(setting.encrypted_value)}
+    encrypted_value = cast(str, getattr(setting, "encrypted_value", "") or "")
+    if not encrypted_value:
+        return {"value": ""}
+    return {"value": decrypt_value(encrypted_value)}

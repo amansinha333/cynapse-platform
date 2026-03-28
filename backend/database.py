@@ -27,6 +27,8 @@ def _normalize_sync_url(url: str) -> str:
     raw = url.strip()
     if raw.startswith("postgres://"):
         raw = "postgresql://" + raw[len("postgres://") :]
+    if raw.startswith("postgresql+asyncpg://"):
+        return raw.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
     if raw.startswith("postgresql://") and "+psycopg2" not in raw:
         return raw.replace("postgresql://", "postgresql+psycopg2://", 1)
     if raw.startswith("sqlite+aiosqlite://"):
@@ -51,7 +53,12 @@ DATABASE_URL = _resolve_database_url()
 ASYNC_DATABASE_URL = _normalize_async_url(DATABASE_URL)
 SYNC_DATABASE_URL = _normalize_sync_url(DATABASE_URL)
 
-engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
+engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=280,
+)
 # Sync engine is kept for scripts/tools that require psycopg2 compatibility.
 sync_engine = create_engine(SYNC_DATABASE_URL, echo=False)
 

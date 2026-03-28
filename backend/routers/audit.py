@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 
 import requests
 from fastapi import APIRouter, Depends
@@ -21,11 +22,20 @@ DEGRADED_RESPONSE = {
     "message": "AI Engine temporarily offline due to rate limits. Please try again later.",
     "recommendation": "N/A",
 }
+PINECONE_VECTOR_DIMENSION = int(os.getenv("PINECONE_VECTOR_DIMENSION", "768"))
 
 
 def _is_rate_limit_error(exc: Exception) -> bool:
     text = str(exc)
     return "429" in text or "RESOURCE_EXHAUSTED" in text
+
+
+def _fit_vector_dimension(values: list[float], target_dim: int) -> list[float]:
+    if len(values) == target_dim:
+        return values
+    if len(values) > target_dim:
+        return values[:target_dim]
+    return values + [0.0] * (target_dim - len(values))
 
 
 async def _get_user_secret(db: AsyncSession, user_id: str, key_name: str) -> str:
@@ -74,12 +84,18 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         query_vector = embed.embeddings[0].values if embed and embed.embeddings else []
         if not query_vector:
             return {"status": "Warning", "framework": "N/A", "rule_violated": "Embedding failed", "recommendation": "Try again"}
+        query_vector = _fit_vector_dimension(query_vector, PINECONE_VECTOR_DIMENSION)
 
         pinecone_key = os.getenv("PINECONE_API_KEY", "").strip() or await _get_user_secret(db, current_user.id, "pinecone_api_key")
         pinecone_index = os.getenv("PINECONE_INDEX", "").strip() or await _get_user_secret(db, current_user.id, "pinecone_index") or "cynapse-compliance"
         pc = Pinecone(api_key=pinecone_key)
         index = pc.Index(pinecone_index)
-        pinecone_result = index.query(vector=query_vector, top_k=5, include_metadata=True)
+        pinecone_result = await asyncio.to_thread(
+            index.query,
+            vector=query_vector,
+            top_k=5,
+            include_metadata=True,
+        )
         parent_contexts = []
         source_citations = []
         for match in pinecone_result.matches or []:

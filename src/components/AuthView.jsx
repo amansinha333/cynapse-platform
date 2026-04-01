@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Network } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Network } from 'lucide-react';
 import { ENTERPRISE_ROLES } from '../config/constants';
 import { useProject } from '../context/ProjectContext';
 import { loginUser, registerUser, setAuthToken, setRefreshToken, API_BASE } from '../utils/api';
@@ -81,6 +82,15 @@ export default function AuthView() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mb-6 flex justify-center sm:justify-start">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 rounded-lg px-1 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+            Back to landing page
+          </Link>
+        </div>
         <div className="flex justify-center text-indigo-600 dark:text-indigo-400 mb-4"><Network size={48} /></div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">Sign in to Cynapse Enterprise</h2>
         <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-2">Hybrid Database Architecture</p>
@@ -150,6 +160,12 @@ export default function AuthView() {
                 {isLogin ? 'Create a new account' : 'Sign in to existing account'}
               </button>
             </div>
+
+            <p className="mt-8 border-t border-slate-200 pt-6 text-center dark:border-slate-600">
+              <Link to="/" className="text-sm font-medium text-slate-500 transition-colors hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400">
+                ← Return to Cynapse Enterprise home
+              </Link>
+            </p>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
   ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck,
-  Database, Settings, Activity, ChevronsLeft
+  Database, Settings, Activity, ChevronsLeft, CreditCard
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { springs, easings } from '../utils/motion';
@@ -25,6 +25,7 @@ const TOP_NAV_ITEMS = [
 const BOTTOM_NAV_ITEMS = [
   { to: '/dashboard/auditlog', label: 'Audit Log', icon: ScrollText },
   { to: '/dashboard/system-health', label: 'System Health', icon: Activity },
+  { to: '/dashboard/billing', label: 'Billing', icon: CreditCard },
   { to: '/dashboard/enterprise-settings', label: 'Enterprise Settings', icon: Settings, adminOnly: true },
 ];
 

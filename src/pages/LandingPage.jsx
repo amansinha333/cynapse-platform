@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, Shield, ChevronRight, ChevronDown, Mail, Globe, Database,
   CheckCircle2, BarChart3, Lock, Cpu, Terminal, Zap, FileText,
   Activity, Sparkles, Code2, Clock, CheckCircle
 } from "lucide-react";
+import posthog from "posthog-js";
 import SafeScrollReveal from "../components/ui/SafeScrollReveal";
 import MagneticButton from "../components/ui/MagneticButton";
 import IsolatedHero3D from "../components/3d/IsolatedHero3D";
@@ -135,6 +137,7 @@ export default function LandingPage() {
             </a>
             <MagneticButton
               href="/dashboard"
+              onClick={() => posthog.capture("clicked_demo_button")}
               className="bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-colors flex items-center gap-2 hover:scale-105 duration-300 shadow-sm shadow-green-500/20"
             >
               See a demo <ArrowRight className="w-4 h-4" />
@@ -179,6 +182,7 @@ export default function LandingPage() {
               </div>
               <MagneticButton
                 href="/dashboard"
+                onClick={() => posthog.capture("clicked_demo_button")}
                 className="w-full sm:w-auto bg-[#facc15] text-[#422006] px-6 py-3 rounded-full text-[15px] font-bold hover:bg-[#eab308] transition-colors flex items-center justify-center gap-2 shrink-0 mt-2 sm:mt-0 hover:scale-105 duration-300"
               >
                 See a demo <ArrowRight className="w-4 h-4" />
@@ -828,6 +832,7 @@ export default function LandingPage() {
             </h2>
             <MagneticButton
               href="/login"
+              onClick={() => posthog.capture("clicked_demo_button")}
               className="bg-[#22c55e] text-white px-8 py-4 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-all flex items-center gap-2 shadow-lg shadow-[#22c55e]/30 hover:scale-105 duration-300"
             >
               See a demo <ArrowRight className="w-4 h-4" />
@@ -866,8 +871,15 @@ export default function LandingPage() {
             <div className="flex flex-col gap-4">
               <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Company</span>
               <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Help</a>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Terms</a>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Security</a>
+              <Link to="/security" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Security
+              </Link>
+              <Link to="/privacy" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Privacy Policy
+              </Link>
+              <Link to="/terms" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Terms of Service
+              </Link>
             </div>
             <div className="flex flex-col gap-4">
               <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Social</span>

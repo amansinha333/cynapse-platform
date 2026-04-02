@@ -1,5 +1,5 @@
 import os
-from typing import Literal
+from typing import Literal, Optional
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import get_current_user
 from database import async_session, get_db
 from models import BillingWebhookEvent, User, Workspace
+from utils.supabase_client import get_supabase_admin
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 
@@ -17,6 +18,9 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
 STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "http://localhost:5173/enterprise-settings?billing=success")
 STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "http://localhost:5173/enterprise-settings?billing=cancel")
+
+# Phase 2: Enterprise Pilot tier checkout (organization_id in metadata)
+PILOT_PRICE_ID = os.getenv("STRIPE_PRICE_ENTERPRISE_PILOT", "").strip()
 
 PRICE_LOOKUP = {
     "Seed": os.getenv("STRIPE_PRICE_SEED", "").strip(),
@@ -26,7 +30,10 @@ PRICE_LOOKUP = {
 
 
 class CheckoutRequest(BaseModel):
-    plan_tier: Literal["Seed", "Growth", "Enterprise"]
+    # Phase 2 path (preferred)
+    organization_id: Optional[str] = None
+    # Legacy path (kept for existing UI compatibility)
+    plan_tier: Optional[Literal["Seed", "Growth", "Enterprise"]] = None
 
 
 def _stripe_status_to_internal(status: str) -> str:
@@ -46,10 +53,6 @@ async def create_checkout_session(
     if not stripe.api_key:
         raise HTTPException(status_code=500, detail="Stripe key not configured")
 
-    price_id = PRICE_LOOKUP.get(payload.plan_tier, "")
-    if not price_id:
-        raise HTTPException(status_code=400, detail=f"Missing Stripe price for {payload.plan_tier}")
-
     if not current_user.workspace_id:
         raise HTTPException(status_code=400, detail="User has no workspace")
 
@@ -59,26 +62,51 @@ async def create_checkout_session(
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
+    # Phase 2: Accept organization_id explicitly; default to workspace id.
+    organization_id = (payload.organization_id or "").strip() or str(workspace.id)
+
     customer_id = workspace.stripe_customer_id
     if not customer_id:
         customer = stripe.Customer.create(
             email=current_user.email,
             name=current_user.full_name,
-            metadata={"workspace_id": workspace.id},
+            metadata={"workspace_id": workspace.id, "organization_id": organization_id},
         )
         customer_id = customer.id
         workspace.stripe_customer_id = customer_id
         await db.flush()
 
+    # Determine which pricing flow to use:
+    # - Phase 2 pilot: fixed "Cynapse Enterprise Pilot"
+    # - Legacy: Seed/Growth/Enterprise lookup
+    mode = "subscription"
+    line_items = []
+    metadata = {"workspace_id": str(workspace.id), "organization_id": organization_id}
+
+    if PILOT_PRICE_ID:
+        line_items = [{"price": PILOT_PRICE_ID, "quantity": 1}]
+        metadata["plan_tier"] = "Enterprise Pilot"
+    else:
+        if not payload.plan_tier:
+            raise HTTPException(
+                status_code=400,
+                detail="Missing Stripe pilot price (STRIPE_PRICE_ENTERPRISE_PILOT) and no plan_tier provided",
+            )
+        price_id = PRICE_LOOKUP.get(payload.plan_tier, "")
+        if not price_id:
+            raise HTTPException(status_code=400, detail=f"Missing Stripe price for {payload.plan_tier}")
+        line_items = [{"price": price_id, "quantity": 1}]
+        metadata["plan_tier"] = payload.plan_tier
+
     session = stripe.checkout.Session.create(
-        mode="subscription",
+        mode=mode,
         customer=customer_id,
-        line_items=[{"price": price_id, "quantity": 1}],
+        line_items=line_items,
         success_url=STRIPE_SUCCESS_URL,
         cancel_url=STRIPE_CANCEL_URL,
-        metadata={"workspace_id": workspace.id, "plan_tier": payload.plan_tier},
+        metadata=metadata,
     )
-    return {"checkout_url": session.url}
+    return {"url": session.url, "checkout_url": session.url}
 
 
 @router.post("/webhook")
@@ -110,9 +138,23 @@ async def stripe_webhook(request: Request):
             await session.flush()
         if event["type"] == "checkout.session.completed":
             checkout_session = event["data"]["object"]
-            workspace_id = checkout_session.get("metadata", {}).get("workspace_id")
+            metadata = checkout_session.get("metadata", {}) or {}
+            workspace_id = metadata.get("workspace_id")
+            organization_id = metadata.get("organization_id")
             subscription_id = checkout_session.get("subscription", "")
-            plan_tier = checkout_session.get("metadata", {}).get("plan_tier", "Seed")
+            plan_tier = metadata.get("plan_tier", "Seed")
+
+            # Phase 2: Update Supabase organizations table (service role key only).
+            if organization_id:
+                try:
+                    supabase = get_supabase_admin()
+                    supabase.table("organizations").update(
+                        {"subscription_status": "active"}
+                    ).eq("id", organization_id).execute()
+                except Exception:
+                    # Don't fail webhook if Supabase update fails; Stripe retries anyway.
+                    pass
+
             if workspace_id:
                 ws = (
                     await session.execute(select(Workspace).where(Workspace.id == workspace_id))

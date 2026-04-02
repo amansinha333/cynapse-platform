@@ -24,6 +24,15 @@ _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(_env_path, override=False)
 load_dotenv(override=False)  # Fallback to cwd
 
+import sentry_sdk
+from posthog import Posthog
+
+sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=1.0)
+
+posthog = Posthog(
+    api_key=os.getenv("POSTHOG_API_KEY", ""),
+    host=os.getenv("POSTHOG_HOST", "https://us.i.posthog.com"),
+)
 
 # Ensure backend dir is on sys.path for absolute imports
 _backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +45,7 @@ from auth import decode_token, get_current_user, validate_email, require_roles
 from routers.auth import router as auth_router
 from routers.audit import router as audit_router
 from routers.billing import router as billing_router
+from routers.invites import router as invites_router
 from routers.vault import router as vault_router
 from utils.encryption import decrypt_value, encrypt_value, ensure_encryption_key_is_secure
 from services.ai_service import run_node1_analysis, run_node2_analysis, run_rice_analysis
@@ -156,6 +166,7 @@ app = FastAPI(title="Cynapse AI Core", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(audit_router)
 app.include_router(billing_router)
+app.include_router(invites_router)
 app.include_router(vault_router)
 
 
@@ -172,6 +183,39 @@ async def strip_vercel_backend_prefix(request: Request, call_next):
     if path.startswith(prefix):
         request.scope["path"] = path[len(prefix):] or "/"
     return await call_next(request)
+
+
+@app.middleware("http")
+async def posthog_request_tracking(request: Request, call_next):
+    """Track API requests in PostHog for product analytics."""
+    response = await call_next(request)
+    try:
+        path = request.url.path
+        # Only track API routes, skip health check and static assets
+        if path.startswith("/api/") or path == "/":
+            distinct_id = request.headers.get("X-User-Id", "anonymous")
+            # Attempt to extract user id from Authorization token if available
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer ") and distinct_id == "anonymous":
+                try:
+                    token = auth_header.removeprefix("Bearer ")
+                    payload = decode_token(token)
+                    distinct_id = str(payload.get("sub", "anonymous"))
+                except Exception:
+                    pass
+            posthog.capture(
+                distinct_id=distinct_id,
+                event="api_request",
+                properties={
+                    "method": request.method,
+                    "path": path,
+                    "status_code": response.status_code,
+                    "$current_url": str(request.url),
+                },
+            )
+    except Exception:
+        pass
+    return response
 
 
 _cors_origins = list(filter(None, [
@@ -1050,6 +1094,7 @@ async def get_me(db: AsyncSession = Depends(get_db), current_user: User = Depend
         "role": current_user.role,
         "status": current_user.status,
         "avatar_url": current_user.avatar_url,
+        "workspace_id": current_user.workspace_id,
         "plan_tier": workspace.plan_tier if workspace else "Seed",
         "subscription_status": workspace.subscription_status if workspace else "canceled",
         "created_at": current_user.created_at.isoformat() if current_user.created_at is not None else "",

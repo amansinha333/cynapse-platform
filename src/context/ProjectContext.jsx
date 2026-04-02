@@ -156,6 +156,7 @@ export function ProjectProvider({ children }) {
           role: me.role,
           status: me.status,
           avatarUrl: me.avatar_url,
+          workspaceId: me.workspace_id,
           planTier: me.plan_tier,
           subscriptionStatus: me.subscription_status || 'active'
         });

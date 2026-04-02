@@ -8,7 +8,8 @@ google-genai
 requests
 python-dotenv
 passlib[bcrypt]==1.7.4
-bcrypt<4
+# bcrypt 4.x breaks passlib 1.7.4 (AttributeError: bcrypt has no attribute __about__)
+bcrypt==3.2.2
 python-jose[cryptography]
 cryptography
 stripe
@@ -21,3 +22,7 @@ authlib
 psycopg2-binary
 asyncpg
 langchain-text-splitters
+supabase
+resend
+sentry-sdk
+posthog

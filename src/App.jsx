@@ -36,6 +36,11 @@ import VaultPage from './pages/VaultPage';
 import OAuthCallback from './pages/OAuthCallback';
 import useWebSocket from './hooks/useWebSocket';
 import SystemHealthPage from './pages/SystemHealthPage';
+import BillingPage from './pages/BillingPage';
+import CookieConsent from './components/ui/CookieConsent';
+import Security from './pages/Security';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 
 function AnimatedOutlet() {
   const location = useLocation();
@@ -195,6 +200,9 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
+        <Route path="/security" element={<Security />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route path="/dashboard" element={<AppLayout />}>
           <Route index element={<Navigate to="list" replace />} />
           <Route path="list" element={<ListView />} />
@@ -215,6 +223,7 @@ function AppRoutes() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="auditlog" element={<AuditLogView />} />
           <Route path="system-health" element={<SystemHealthPage />} />
+          <Route path="billing" element={<BillingPage />} />
           <Route path="*" element={<Navigate to="/dashboard/list" replace />} />
         </Route>
 
@@ -233,6 +242,7 @@ function AppRoutes() {
         <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
         <Route path="/auditlog" element={<Navigate to="/dashboard/auditlog" replace />} />
         <Route path="/system-health" element={<Navigate to="/dashboard/system-health" replace />} />
+        <Route path="/billing" element={<Navigate to="/dashboard/billing" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
@@ -242,6 +252,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <ProjectProvider>
+      <CookieConsent />
       <AppRoutes />
     </ProjectProvider>
   );

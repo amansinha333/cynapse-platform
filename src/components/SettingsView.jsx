@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { extractPdfText } from '../utils/pdf';
 import { useProject } from '../context/ProjectContext';
+import InviteModal from './dashboard/InviteModal';
 
 export default function SettingsView() {
   const {
@@ -18,6 +19,7 @@ export default function SettingsView() {
     uploadedFiles, setUploadedFiles,
     vendors, setVendors
   } = useProject();
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
 
@@ -74,9 +76,19 @@ export default function SettingsView() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
       {/* 1. Architecture Status Card */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2"><Cpu size={20}/> System Architecture Status</h3>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><Cpu size={20}/> System Architecture Status</h3>
+          <button
+            type="button"
+            onClick={() => setInviteOpen(true)}
+            className="rounded-lg bg-slate-900 text-white px-4 py-2 text-xs font-black hover:bg-slate-800"
+          >
+            Invite teammate
+          </button>
+        </div>
 
         {backendStatus ? (
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-lg mb-2">

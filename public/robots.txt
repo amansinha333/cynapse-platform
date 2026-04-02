@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /api
+
+Sitemap: https://cynapse-platform.vercel.app/sitemap.xml

@@ -41,6 +41,13 @@ import CookieConsent from './components/ui/CookieConsent';
 import Security from './pages/Security';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import Features from './pages/Features';
+import About from './pages/About';
+import DataProcessing from './pages/DataProcessing';
+import Governance from './pages/platform/Governance';
+import Prioritization from './pages/platform/Prioritization';
+import Enterprise from './pages/solutions/Enterprise';
+import CompanyAbout from './pages/company/About';
 
 function AnimatedOutlet() {
   const location = useLocation();
@@ -200,6 +207,13 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
+        <Route path="/platform/governance" element={<Governance />} />
+        <Route path="/platform/prioritization" element={<Prioritization />} />
+        <Route path="/solutions/enterprise" element={<Enterprise />} />
+        <Route path="/company/about" element={<CompanyAbout />} />
+        <Route path="/features" element={<Features />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/data-processing" element={<DataProcessing />} />
         <Route path="/security" element={<Security />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />

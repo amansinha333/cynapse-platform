@@ -122,12 +122,84 @@ export default function LandingPage() {
               Cynapse
             </a>
 
-            <div className="hidden md:flex items-center gap-8 text-[15px] font-semibold text-[#042f1f]">
-              <button className="flex items-center gap-1 hover:text-[#22c55e] transition-colors">
-                Products <ChevronRight className="w-4 h-4 rotate-90 opacity-50" />
-              </button>
-              <a href="#customers" className="hover:text-[#22c55e] transition-colors">Customers</a>
-              <a href="#careers" className="hover:text-[#22c55e] transition-colors">Careers</a>
+            <div className="hidden md:flex items-center gap-2 lg:gap-4 text-[13px] lg:text-[14px] font-semibold text-[#042f1f]">
+              {/* Platform */}
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-full px-2 py-2 hover:text-[#22c55e] transition-colors"
+                  aria-expanded="false"
+                  aria-haspopup="true"
+                >
+                  Platform
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </button>
+                <div className="absolute left-0 top-full z-[60] pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                  <div className="min-w-[240px] rounded-2xl border border-slate-200/90 bg-white py-2 shadow-xl">
+                    <Link
+                      to="/platform/governance"
+                      className="block px-4 py-2.5 text-[13px] text-[#042f1f] hover:bg-[#f0fdf4] hover:text-[#22c55e]"
+                    >
+                      Hard-Gate Governance
+                    </Link>
+                    <Link
+                      to="/platform/prioritization"
+                      className="block px-4 py-2.5 text-[13px] text-[#042f1f] hover:bg-[#f0fdf4] hover:text-[#22c55e]"
+                    >
+                      RICE Prioritization
+                    </Link>
+                  </div>
+                </div>
+              </div>
+              {/* Solutions */}
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-full px-2 py-2 hover:text-[#22c55e] transition-colors"
+                >
+                  Solutions
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </button>
+                <div className="absolute left-0 top-full z-[60] pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                  <div className="min-w-[220px] rounded-2xl border border-slate-200/90 bg-white py-2 shadow-xl">
+                    <Link
+                      to="/solutions/enterprise"
+                      className="block px-4 py-2.5 text-[13px] text-[#042f1f] hover:bg-[#f0fdf4] hover:text-[#22c55e]"
+                    >
+                      Enterprise
+                    </Link>
+                  </div>
+                </div>
+              </div>
+              {/* Company */}
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-full px-2 py-2 hover:text-[#22c55e] transition-colors"
+                >
+                  Company
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </button>
+                <div className="absolute left-0 top-full z-[60] pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                  <div className="min-w-[200px] rounded-2xl border border-slate-200/90 bg-white py-2 shadow-xl">
+                    <Link
+                      to="/company/about"
+                      className="block px-4 py-2.5 text-[13px] text-[#042f1f] hover:bg-[#f0fdf4] hover:text-[#22c55e]"
+                    >
+                      About us
+                    </Link>
+                    <Link
+                      to="/security"
+                      className="block px-4 py-2.5 text-[13px] text-[#042f1f] hover:bg-[#f0fdf4] hover:text-[#22c55e]"
+                    >
+                      Security Center
+                    </Link>
+                  </div>
+                </div>
+              </div>
+              <a href="#customers" className="hover:text-[#22c55e] transition-colors px-1">
+                Customers
+              </a>
             </div>
           </div>
 
@@ -843,48 +915,79 @@ export default function LandingPage() {
 
       {/* --- 8. FOOTER --- */}
       <footer className="bg-[#042417] text-white px-6 md:px-12 py-20 rounded-t-[2.5rem] max-w-[1500px] mx-auto mt-4 relative">
-        <div className="max-w-[1300px] mx-auto flex flex-col lg:flex-row justify-between gap-16 relative z-10">
+        <div className="max-w-[1300px] mx-auto flex flex-col gap-14 relative z-10">
 
-          <div className="flex-1">
-            <a href="/" className="flex items-center gap-2 text-2xl font-black tracking-tight text-white mb-8 hover:opacity-80 transition-opacity w-max">
-              <Shield className="w-8 h-8 text-[#22c55e] fill-[#22c55e]" />
-              Cynapse
-            </a>
+          <div className="flex flex-col lg:flex-row justify-between gap-16">
+            <div className="flex-1">
+              <a href="/" className="flex items-center gap-2 text-2xl font-black tracking-tight text-white mb-8 hover:opacity-80 transition-opacity w-max">
+                <Shield className="w-8 h-8 text-[#22c55e] fill-[#22c55e]" />
+                Cynapse
+              </a>
 
-            {/* Live Operational Status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">All systems operational</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">All systems operational</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14 xl:gap-20">
+              <div className="flex flex-col gap-4">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Platform</span>
+                <Link to="/platform/governance" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Governance
+                </Link>
+                <Link to="/platform/prioritization" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Prioritization
+                </Link>
+              </div>
+              <div className="flex flex-col gap-4">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Solutions</span>
+                <Link to="/solutions/enterprise" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Enterprise
+                </Link>
+              </div>
+              <div className="flex flex-col gap-4">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Company</span>
+                <Link to="/company/about" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  About
+                </Link>
+                <Link to="/security" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Security
+                </Link>
+                <a href="#customers" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Customers
+                </a>
+              </div>
+              <div className="flex flex-col gap-4">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Legal</span>
+                <Link to="/privacy" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Privacy
+                </Link>
+                <Link to="/terms" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Terms
+                </Link>
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-16 md:gap-24 flex-wrap">
-            <div className="flex flex-col gap-4">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Menu</span>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Customers</a>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Resources</a>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Careers</a>
-            </div>
-            <div className="flex flex-col gap-4">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Company</span>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">Help</a>
-              <Link to="/security" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
-                Security
+          <div className="border-t border-white/10 pt-10">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4 block">Resources</span>
+            <div className="flex flex-wrap gap-x-8 gap-y-3">
+              <Link to="/features" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Features
               </Link>
-              <Link to="/privacy" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
-                Privacy Policy
+              <Link to="/data-processing" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Data Processing
               </Link>
-              <Link to="/terms" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
-                Terms of Service
-              </Link>
-            </div>
-            <div className="flex flex-col gap-4">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Social</span>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">X (Twitter)</a>
-              <a href="#" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">LinkedIn</a>
+              <a href="mailto:hello@cynapse.com" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Contact
+              </a>
+              <span className="text-slate-500 font-semibold text-[14px] cursor-not-allowed" title="Coming soon">
+                Documentation
+              </span>
             </div>
           </div>
         </div>

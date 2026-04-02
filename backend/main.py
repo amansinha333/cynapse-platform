@@ -29,10 +29,14 @@ from posthog import Posthog
 
 sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=1.0)
 
-posthog = Posthog(
-    project_api_key=os.getenv("POSTHOG_API_KEY", ""),
-    host=os.getenv("POSTHOG_HOST", "https://us.i.posthog.com"),
-)
+# PostHog: only initialize when a key is set (avoids 401 spam in logs on Render without POSTHOG_API_KEY)
+_posthog_key = (os.getenv("POSTHOG_API_KEY") or "").strip()
+posthog: Optional[Posthog] = None
+if _posthog_key:
+    posthog = Posthog(
+        project_api_key=_posthog_key,
+        host=(os.getenv("POSTHOG_HOST") or "https://us.i.posthog.com").strip(),
+    )
 
 # Ensure backend dir is on sys.path for absolute imports
 _backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -189,6 +193,8 @@ async def strip_vercel_backend_prefix(request: Request, call_next):
 async def posthog_request_tracking(request: Request, call_next):
     """Track API requests in PostHog for product analytics."""
     response = await call_next(request)
+    if posthog is None:
+        return response
     try:
         path = request.url.path
         # Only track API routes, skip health check and static assets

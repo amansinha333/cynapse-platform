@@ -30,7 +30,7 @@ from posthog import Posthog
 sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=1.0)
 
 posthog = Posthog(
-    api_key=os.getenv("POSTHOG_API_KEY", ""),
+    project_api_key=os.getenv("POSTHOG_API_KEY", ""),
     host=os.getenv("POSTHOG_HOST", "https://us.i.posthog.com"),
 )
 

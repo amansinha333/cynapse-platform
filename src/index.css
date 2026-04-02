@@ -17,6 +17,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body.cyn-premium-cursor-active {
+  cursor: none;
+}
+
+body.cyn-premium-cursor-active input,
+body.cyn-premium-cursor-active textarea,
+body.cyn-premium-cursor-active select {
+  cursor: text;
+}
+
 .font-serif {
   font-family: 'Playfair Display', serif;
 }

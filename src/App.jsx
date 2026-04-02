@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate, Link, Outlet, useLocation } from 'react-router-dom';
+import PremiumCursor from './components/ui/PremiumCursor';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Network, Sun, Moon, Menu, Plus, Search,
@@ -184,9 +185,13 @@ function AppLayout() {
   );
 }
 
-export default function App() {
+function AppRoutes() {
+  const location = useLocation();
+  const showPremiumCursor = location.pathname === '/';
+
   return (
-    <ProjectProvider>
+    <>
+      {showPremiumCursor && <PremiumCursor />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
@@ -230,6 +235,14 @@ export default function App() {
         <Route path="/system-health" element={<Navigate to="/dashboard/system-health" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <ProjectProvider>
+      <AppRoutes />
     </ProjectProvider>
   );
 }

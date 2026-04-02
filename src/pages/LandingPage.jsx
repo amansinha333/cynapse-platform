@@ -1,28 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowRight, Shield, ChevronRight, ChevronUp, ChevronDown, Mail, Globe, Database,
+  ArrowRight, Shield, ChevronRight, ChevronDown, Mail, Globe, Database,
   CheckCircle2, BarChart3, Lock, Cpu, Terminal, Zap, FileText,
   Activity, Sparkles, Code2, Clock, CheckCircle
 } from "lucide-react";
+import SafeScrollReveal from "../components/ui/SafeScrollReveal";
+import MagneticButton from "../components/ui/MagneticButton";
+import IsolatedHero3D from "../components/3d/IsolatedHero3D";
+import BrandedLoader from "../components/ui/BrandedLoader";
 
 export default function LandingPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [openFaq, setOpenFaq] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Animation variants for staggered children
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
-  };
+  const handleLoaderComplete = useCallback(() => {
+    setIsLoading(false);
+  }, []);
 
   const workflowTabs = [
     {
@@ -102,7 +97,14 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-[#042f1f] font-sans overflow-x-hidden pb-4">
+    <>
+      {/* === BRANDED LOADER === */}
+      {isLoading && <BrandedLoader onComplete={handleLoaderComplete} />}
+
+      <div
+        style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.6s ease-out" }}
+        className="min-h-screen bg-white text-[#042f1f] font-sans overflow-x-hidden pb-4"
+      >
 
       {/* --- 1. FLOATING NAVIGATION --- */}
       <nav className="fixed top-4 left-0 right-0 z-50 px-4 md:px-8 pointer-events-none">
@@ -131,27 +133,26 @@ export default function LandingPage() {
             <a href="/dashboard" className="hidden md:block text-[15px] font-semibold text-[#042f1f] hover:text-[#22c55e] transition-colors">
               Sign in
             </a>
-            <a href="/dashboard" className="bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-colors flex items-center gap-2 hover:scale-105 duration-300 shadow-sm shadow-green-500/20">
+            <MagneticButton
+              href="/dashboard"
+              className="bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-colors flex items-center gap-2 hover:scale-105 duration-300 shadow-sm shadow-green-500/20"
+            >
               See a demo <ArrowRight className="w-4 h-4" />
-            </a>
+            </MagneticButton>
           </div>
         </motion.div>
       </nav>
 
       {/* --- 2. LUSH GREEN HERO SECTION --- */}
       <section className="px-4 md:px-6 pt-24 pb-8">
-        <div className="relative rounded-[2.5rem] overflow-hidden bg-[#0a3f31] pt-32 pb-16 flex flex-col items-center text-center max-w-[1500px] mx-auto shadow-2xl border border-white/10">
+        <div className="relative rounded-[2.5rem] overflow-hidden bg-[#0a3f31] pb-16 max-w-[1500px] mx-auto shadow-2xl border border-white/10">
           {/* Subtle Background Gradients to mimic the illustration */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#115e49] via-[#0a3f31] to-[#042417] opacity-90 z-0"></div>
           <div className="absolute bottom-0 inset-x-0 h-2/3 bg-gradient-to-t from-[#facc15]/10 to-transparent z-0 mix-blend-overlay"></div>
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[100px] rounded-full z-0 pointer-events-none"></div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-            className="relative z-10 max-w-4xl px-6 flex flex-col items-center mt-4"
-          >
+          <div className="relative z-10 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-12 lg:items-stretch items-stretch px-6 md:px-10 pt-28 pb-6">
+            <SafeScrollReveal className="flex flex-col items-center text-center lg:items-start lg:text-left max-w-4xl lg:max-w-none mx-auto lg:mx-0 w-full">
             {/* New Feature Pill */}
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/20 bg-white/10 backdrop-blur-md mb-8">
               <Sparkles className="w-4 h-4 text-yellow-400" />
@@ -162,12 +163,12 @@ export default function LandingPage() {
               Govern and map your human and AI products
             </h1>
 
-            <p className="text-lg md:text-[1.35rem] text-emerald-50/90 max-w-2xl mx-auto mb-12 font-medium leading-snug">
+            <p className="text-lg md:text-[1.35rem] text-emerald-50/90 max-w-2xl mx-auto lg:mx-0 mb-12 font-medium leading-snug">
               Make every compliance interaction better, faster, and more consistent with the optimization platform for enterprise governance.
             </p>
 
             {/* Email Input & Yellow Button */}
-            <div className="flex flex-col sm:flex-row items-center bg-white p-2 rounded-full w-full max-w-md mx-auto shadow-2xl hover:shadow-[0_8px_30px_rgba(250,204,21,0.2)] transition-shadow duration-500">
+            <div className="flex flex-col sm:flex-row items-center bg-white p-2 rounded-full w-full max-w-md mx-auto lg:mx-0 shadow-2xl hover:shadow-[0_8px_30px_rgba(250,204,21,0.2)] transition-shadow duration-500">
               <div className="flex items-center w-full px-4 text-slate-400">
                 <Mail className="w-5 h-5 mr-3 shrink-0" />
                 <input
@@ -176,11 +177,19 @@ export default function LandingPage() {
                   className="flex-1 bg-transparent py-2 outline-none text-[#042f1f] placeholder-slate-400 w-full text-base font-medium"
                 />
               </div>
-              <a href="/dashboard" className="w-full sm:w-auto bg-[#facc15] text-[#422006] px-6 py-3 rounded-full text-[15px] font-bold hover:bg-[#eab308] transition-colors flex items-center justify-center gap-2 shrink-0 mt-2 sm:mt-0 hover:scale-105 duration-300">
+              <MagneticButton
+                href="/dashboard"
+                className="w-full sm:w-auto bg-[#facc15] text-[#422006] px-6 py-3 rounded-full text-[15px] font-bold hover:bg-[#eab308] transition-colors flex items-center justify-center gap-2 shrink-0 mt-2 sm:mt-0 hover:scale-105 duration-300"
+              >
                 See a demo <ArrowRight className="w-4 h-4" />
-              </a>
+              </MagneticButton>
             </div>
-          </motion.div>
+            </SafeScrollReveal>
+
+            <div className="relative w-full min-h-[520px] h-[520px] lg:min-h-[520px] lg:h-full pointer-events-none hidden lg:block">
+              <IsolatedHero3D />
+            </div>
+          </div>
 
           {/* Social Proof Logos (Infinite "Moving Train" Marquee) */}
           <div className="relative z-10 w-full mt-28 border-t border-white/10 pt-8 overflow-hidden flex flex-col items-center">
@@ -244,23 +253,15 @@ export default function LandingPage() {
 
       {/* --- 3. THE 3 INSIGHT CARDS --- */}
       <section className="py-24 px-4 md:px-8 max-w-[1300px] mx-auto">
-        <motion.h2
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6 }}
-          className="text-[2.5rem] md:text-[4rem] font-bold tracking-tighter text-[#042f1f] text-center max-w-4xl mx-auto leading-[1.05] mb-20"
-        >
-          Close the loop from product insight to compliance execution
-        </motion.h2>
+        <SafeScrollReveal className="mb-20">
+          <h2 className="text-[2.5rem] md:text-[4rem] font-bold tracking-tighter text-[#042f1f] text-center max-w-4xl mx-auto leading-[1.05]">
+            Close the loop from product insight to compliance execution
+          </h2>
+        </SafeScrollReveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <SafeScrollReveal stagger className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1: Yellow */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+          <div
             className="bg-[#fef9c3] rounded-[2rem] p-8 flex flex-col overflow-hidden h-[450px] group hover:-translate-y-2 transition-transform duration-300 border border-yellow-200"
           >
             {/* Mock UI */}
@@ -294,14 +295,10 @@ export default function LandingPage() {
             <h3 className="text-[1.75rem] font-bold text-[#042f1f] leading-tight mt-auto tracking-tight">
               Review 100% of frameworks in seconds.
             </h3>
-          </motion.div>
+          </div>
 
           {/* Card 2: Green */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+          <div
             className="bg-[#dcfce7] rounded-[2rem] p-8 flex flex-col overflow-hidden h-[450px] group hover:-translate-y-2 transition-transform duration-300 border border-green-200"
           >
             {/* Mock UI */}
@@ -328,14 +325,10 @@ export default function LandingPage() {
             <h3 className="text-[1.75rem] font-bold text-[#042f1f] leading-tight mt-auto tracking-tight">
               Generate custom maps for every epic.
             </h3>
-          </motion.div>
+          </div>
 
           {/* Card 3: Light Teal/White */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+          <div
             className="bg-[#f0fdf4] rounded-[2rem] p-8 flex flex-col overflow-hidden h-[450px] group hover:-translate-y-2 transition-transform duration-300 border border-green-100"
           >
             {/* Mock UI */}
@@ -364,9 +357,9 @@ export default function LandingPage() {
             <h3 className="text-[1.75rem] font-bold text-[#042f1f] leading-tight mt-auto tracking-tight">
               Watch framework adherence increase.
             </h3>
-          </motion.div>
+          </div>
 
-        </div>
+        </SafeScrollReveal>
       </section>
 
       {/* --- METRICS BANNER --- */}
@@ -549,18 +542,18 @@ export default function LandingPage() {
 
       {/* --- INTERACTIVE "HOW IT WORKS" WORKFLOW (TERMINAL) --- */}
       <section className="py-24 px-4 md:px-8 max-w-[1300px] mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <SafeScrollReveal className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-[2.5rem] md:text-[3.5rem] font-bold tracking-tighter text-[#042f1f] leading-[1.05] mb-6">
             The Agentic Architecture
           </h2>
           <p className="text-lg text-slate-500 font-medium">
             How Cynapse transforms raw regulatory manuals into an automated, proactive security guardrail for your engineering teams.
           </p>
-        </div>
+        </SafeScrollReveal>
 
-        <div className="flex flex-col md:flex-row gap-8 lg:gap-16 items-center">
+        <SafeScrollReveal stagger staggerDelay={0.12} className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center w-full max-w-7xl mx-auto">
           {/* Left: Clickable Tabs */}
-          <div className="w-full md:w-[45%] flex flex-col gap-4">
+          <div className="w-full flex flex-col gap-4">
             {workflowTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -584,19 +577,19 @@ export default function LandingPage() {
           </div>
 
           {/* Right: Interactive Terminal/UI Mockup */}
-          <div className="w-full md:w-[55%]">
-            <div className="bg-[#0f172a] rounded-[2rem] shadow-2xl overflow-hidden border border-slate-700 h-[420px] flex flex-col relative">
+          <div className="w-full min-w-0">
+            <div className="bg-[#0f172a] rounded-[2rem] shadow-2xl overflow-hidden border border-slate-700 h-[420px] flex flex-col relative w-full">
               {/* Fake Mac Window Controls & Tab Bar */}
-              <div className="h-12 bg-[#1e293b] border-b border-slate-700 flex items-center px-4 gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <div className="h-12 bg-[#1e293b] border-b border-slate-700 flex items-center px-4 gap-2 shrink-0">
+                <div className="w-3 h-3 rounded-full bg-red-500 shrink-0"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500 shrink-0"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500 shrink-0"></div>
 
-                <div className="ml-4 flex items-center h-full">
-                  <div className="flex items-center gap-2 bg-[#0f172a] border-t-2 border-t-blue-500 px-4 h-full text-xs font-mono text-slate-300">
-                    <Code2 className="w-3 h-3 text-blue-400" /> backend_agent.py
+                <div className="ml-4 flex items-center h-full overflow-hidden">
+                  <div className="flex items-center gap-2 bg-[#0f172a] border-t-2 border-t-blue-500 px-4 h-full text-xs font-mono text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis">
+                    <Code2 className="w-3 h-3 text-blue-400 shrink-0" /> backend_agent.py
                   </div>
-                  <div className="flex items-center gap-2 px-4 h-full text-xs font-mono text-slate-500 border-r border-slate-700/50">
+                  <div className="flex items-center gap-2 px-4 h-full text-xs font-mono text-slate-500 border-r border-slate-700/50 whitespace-nowrap shrink-0 hidden sm:flex">
                     <Terminal className="w-3 h-3" /> zsh
                   </div>
                 </div>
@@ -609,7 +602,7 @@ export default function LandingPage() {
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => <div key={n} className="leading-[1.6rem]">{n}</div>)}
                 </div>
 
-                <div className="p-6 font-mono text-sm leading-[1.6rem] overflow-hidden relative flex-1">
+                <div className="p-6 font-mono text-sm sm:text-base leading-[1.6rem] overflow-hidden relative flex-1">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeTab}
@@ -617,7 +610,7 @@ export default function LandingPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.3 }}
-                      className="absolute inset-0 p-6 whitespace-pre-wrap"
+                      className="absolute inset-0 p-6 whitespace-pre-wrap overflow-y-auto"
                     >
                       <span className="text-[#22c55e] font-bold">admin@cynapse</span><span className="text-white">:</span><span className="text-blue-400 font-bold">~/enterprise-server</span><span className="text-white">$ run_agent --step {activeTab + 1}</span>
                       <br /><br />
@@ -636,7 +629,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </div>
+        </SafeScrollReveal>
       </section>
 
       {/* --- NEW: PLATFORM SNAP - VERTICAL HARD-GATE WORKFLOW --- */}
@@ -833,9 +826,12 @@ export default function LandingPage() {
             <h2 className="text-[2.5rem] md:text-[4rem] font-bold tracking-tighter text-white leading-[1.05] mb-10 drop-shadow-md">
               Raise the bar for every compliance interaction
             </h2>
-            <a href="/login" className="bg-[#22c55e] text-white px-8 py-4 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-all flex items-center gap-2 shadow-lg shadow-[#22c55e]/30 hover:scale-105 duration-300">
+            <MagneticButton
+              href="/login"
+              className="bg-[#22c55e] text-white px-8 py-4 rounded-full text-[15px] font-bold hover:bg-[#16a34a] transition-all flex items-center gap-2 shadow-lg shadow-[#22c55e]/30 hover:scale-105 duration-300"
+            >
               See a demo <ArrowRight className="w-4 h-4" />
-            </a>
+            </MagneticButton>
           </div>
         </motion.div>
       </section>
@@ -886,6 +882,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-    </div>
+      </div>
+    </>
   );
 }

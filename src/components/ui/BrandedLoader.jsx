@@ -1,42 +1,54 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield } from "lucide-react";
 
 const MARQUEE_TEXT = "CYNAPSE ENTERPRISE • UNIVERSAL AI COMPLIANCE ENGINE • ";
-const LOAD_DURATION = 3200; // ms total loading time
+const LOAD_DURATION = 3200;
 const TICK_INTERVAL = 30;
+const EXIT_DURATION_MS = 700;
+const HOLD_AT_100_MS = 350;
 
-/**
- * Branded Loader / Welcome Screen — inspired by akashrmalhotra.netlify.app
- * Cynapse brand: deep slate bg, green accents, bold marquee.
- */
 export default function BrandedLoader({ onComplete }) {
   const [progress, setProgress] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
+  const completedRef = useRef(false);
+  const exitFallbackRef = useRef(null);
+
+  const finish = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    if (exitFallbackRef.current) {
+      clearTimeout(exitFallbackRef.current);
+      exitFallbackRef.current = null;
+    }
+    onComplete?.();
+  }, [onComplete]);
 
   useEffect(() => {
     const steps = LOAD_DURATION / TICK_INTERVAL;
     let step = 0;
     const id = setInterval(() => {
       step++;
-      // Ease-in-out curve for feel
       const t = step / steps;
-      const eased = t < 0.5
-        ? 2 * t * t
-        : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       setProgress(Math.min(Math.round(eased * 100), 100));
       if (step >= steps) {
         clearInterval(id);
-        // Brief hold at 100% then exit
-        setTimeout(() => setIsExiting(true), 350);
+        setTimeout(() => {
+          setIsExiting(true);
+          exitFallbackRef.current = setTimeout(finish, EXIT_DURATION_MS + 250);
+        }, HOLD_AT_100_MS);
       }
     }, TICK_INTERVAL);
-    return () => clearInterval(id);
-  }, []);
+    return () => {
+      clearInterval(id);
+      if (exitFallbackRef.current) clearTimeout(exitFallbackRef.current);
+    };
+  }, [finish]);
 
   const handleExitComplete = useCallback(() => {
-    onComplete?.();
-  }, [onComplete]);
+    finish();
+  }, [finish]);
 
   return (
     <AnimatePresence onExitComplete={handleExitComplete}>

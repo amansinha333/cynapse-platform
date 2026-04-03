@@ -25,7 +25,7 @@ function getWebSocketUrl(token) {
   return `${proto}//${window.location.host}/ws/dashboard?token=${encodeURIComponent(token || '')}`;
 }
 
-export default function useWebSocket() {
+export default function useWebSocket(shouldConnect = true) {
   const wsRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuditRunning, setIsAuditRunning] = useState(false);
@@ -34,11 +34,18 @@ export default function useWebSocket() {
   const reconnectAttemptRef = useRef(0);
 
   const wsUrl = useMemo(() => {
+    if (!shouldConnect) return null;
     const token = localStorage.getItem(TOKEN_KEY) || '';
+    if (!token) return null;
     return getWebSocketUrl(token);
-  }, []);
+  }, [shouldConnect]);
 
   useEffect(() => {
+    if (!wsUrl) {
+      setIsConnected(false);
+      setIsAuditRunning(false);
+      return undefined;
+    }
     let isUnmounted = false;
 
     const connect = () => {

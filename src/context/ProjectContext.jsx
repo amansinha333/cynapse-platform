@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { BACKEND_URL, INITIAL_FEATURES, DEFAULT_USERS, INITIAL_EPICS } from '../config/constants';
-import { checkHealth, fetchFeatures, fetchEpics, fetchVendors, createFeature as apiCreateFeature, updateFeature as apiUpdateFeature, deleteFeatureApi, setAuthToken, setRefreshToken, fetchCurrentUser } from '../utils/api';
+import { checkHealth, fetchFeatures, fetchEpics, fetchVendors, createFeature as apiCreateFeature, updateFeature as apiUpdateFeature, deleteFeatureApi, setAuthToken, setRefreshToken, fetchCurrentUser, AUTH_LOGOUT_EVENT } from '../utils/api';
 
 const ProjectContext = createContext(null);
 
@@ -168,6 +168,16 @@ export function ProjectProvider({ children }) {
       }
     };
     hydrateUser();
+  }, []);
+
+  useEffect(() => {
+    const onAuthLogout = () => {
+      setAuthToken(null);
+      setRefreshToken(null);
+      setCurrentUser(null);
+    };
+    window.addEventListener(AUTH_LOGOUT_EVENT, onAuthLogout);
+    return () => window.removeEventListener(AUTH_LOGOUT_EVENT, onAuthLogout);
   }, []);
 
   // =========================================================================

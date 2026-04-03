@@ -12,11 +12,14 @@ Sentry.init({
   tracesSampleRate: 1.0,
 })
 
-// --- NEW GDPR COMPLIANT POSTHOG INIT ---
-if (localStorage.getItem("cynapse_cookie_consent") !== "declined") {
-  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-    api_host: import.meta.env.VITE_POSTHOG_HOST,
-  })
+if (localStorage.getItem("cynapse_cookie_consent") !== "declined" && import.meta.env.VITE_POSTHOG_KEY) {
+  try {
+    posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
+      api_host: import.meta.env.VITE_POSTHOG_HOST || "https://app.posthog.com",
+    })
+  } catch (e) {
+    console.warn("PostHog init skipped:", e)
+  }
 }
 // ---------------------------------------
 

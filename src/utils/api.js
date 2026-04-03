@@ -9,6 +9,9 @@ export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8
 const TOKEN_KEY = 'cynapse_jwt_token';
 const REFRESH_TOKEN_KEY = 'cynapse_refresh_token';
 
+/** Dispatched when refresh fails after 401 so ProjectProvider can clear session (avoid infinite API loops). */
+export const AUTH_LOGOUT_EVENT = 'cynapse-auth-logout';
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -32,6 +35,11 @@ async function request(path, options = {}) {
       }
       setAuthToken(null);
       setRefreshToken(null);
+      try {
+        window.dispatchEvent(new CustomEvent(AUTH_LOGOUT_EVENT));
+      } catch {
+        /* no-op */
+      }
     }
     const errBody = await res.text().catch(() => '');
     throw new Error(errBody || `API Error ${res.status} on ${options.method || 'GET'} ${path}`);
@@ -94,6 +102,16 @@ export const createEpic  = (data) => request('/api/epics', { method: 'POST', bod
 // ---------------------------------------------------------------------------
 export const fetchVendors  = ()     => request('/api/vendors');
 export const createVendor  = (data) => request('/api/vendors', { method: 'POST', body: JSON.stringify(data) });
+
+// ---------------------------------------------------------------------------
+// CRM hub (maps vendors → clients, epics → projects, audit → inbox)
+// ---------------------------------------------------------------------------
+export const fetchCRMStats = () => request('/api/crm/stats');
+export const fetchClients = () => request('/api/crm/clients');
+export const fetchProjects = () => request('/api/crm/projects');
+export const fetchInbox = () => request('/api/crm/inbox');
+export const markNotificationRead = (id) =>
+  request(`/api/crm/inbox/${encodeURIComponent(id)}/read`, { method: 'PATCH' });
 
 // ---------------------------------------------------------------------------
 // AUDIT LOG

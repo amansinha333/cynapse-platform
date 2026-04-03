@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,6 +19,11 @@ export default function LandingPage() {
 
   const handleLoaderComplete = useCallback(() => {
     setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 9000);
+    return () => clearTimeout(t);
   }, []);
 
   const workflowTabs = [

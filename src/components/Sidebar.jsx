@@ -4,10 +4,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
   ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck,
-  Database, Settings, Activity, ChevronsLeft, CreditCard
+  Database, Settings, Activity, ChevronsLeft, CreditCard,
+  Users, FolderKanban, Inbox as InboxIcon, LayoutGrid,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { springs, easings } from '../utils/motion';
+
+const CRM_NAV_ITEMS = [
+  { to: '/dashboard/overview', label: 'Overview', icon: LayoutGrid },
+  { to: '/dashboard/clients', label: 'Clients', icon: Users },
+  { to: '/dashboard/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/dashboard/inbox', label: 'Inbox', icon: InboxIcon },
+];
 
 const TOP_NAV_ITEMS = [
   { to: '/dashboard/home', label: 'Dashboard', icon: LayoutDashboard },
@@ -212,24 +220,40 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
 
       {/* Navigation */}
       <nav className={`flex-1 ${sidebarOpen ? 'px-4' : 'px-2'} space-y-0.5 overflow-y-auto custom-scrollbar pt-2 relative z-10 flex flex-col transition-[padding] duration-300`}>
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-3"
-            >
-              Core Work
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {TOP_NAV_ITEMS.map((item, index) => (
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-[10px] font-black text-indigo-500/95 uppercase tracking-widest px-4 mb-2"
+          >
+            CRM hub
+          </motion.div>
+        )}
+        {CRM_NAV_ITEMS.map((item, index) => (
           <NavItem
             key={item.to}
             item={item}
             index={index}
+            expanded={sidebarOpen}
+            hoveredItem={hoveredItem}
+            setHoveredItem={setHoveredItem}
+            highRiskCount={highRiskCount}
+          />
+        ))}
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mt-4 mb-3"
+          >
+            Workspace
+          </motion.div>
+        )}
+        {TOP_NAV_ITEMS.map((item, index) => (
+          <NavItem
+            key={item.to}
+            item={item}
+            index={CRM_NAV_ITEMS.length + index}
             expanded={sidebarOpen}
             hoveredItem={hoveredItem}
             setHoveredItem={setHoveredItem}
@@ -254,7 +278,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
             <NavItem
               key={item.to}
               item={item}
-              index={TOP_NAV_ITEMS.length + index}
+              index={CRM_NAV_ITEMS.length + TOP_NAV_ITEMS.length + index}
               expanded={sidebarOpen}
               hoveredItem={hoveredItem}
               setHoveredItem={setHoveredItem}

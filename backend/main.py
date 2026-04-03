@@ -51,6 +51,7 @@ from routers.audit import router as audit_router
 from routers.billing import router as billing_router
 from routers.invites import router as invites_router
 from routers.vault import router as vault_router
+from routers.crm import router as crm_router
 from utils.encryption import decrypt_value, encrypt_value, ensure_encryption_key_is_secure
 from services.ai_service import run_node1_analysis, run_node2_analysis, run_rice_analysis
 from utils.websockets import dashboard_manager
@@ -172,6 +173,7 @@ app.include_router(audit_router)
 app.include_router(billing_router)
 app.include_router(invites_router)
 app.include_router(vault_router)
+app.include_router(crm_router)
 
 
 @app.get("/")

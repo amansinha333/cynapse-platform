@@ -48,6 +48,24 @@ import Governance from './pages/platform/Governance';
 import Prioritization from './pages/platform/Prioritization';
 import Enterprise from './pages/solutions/Enterprise';
 import CompanyAbout from './pages/company/About';
+import Overview from './pages/dashboard/Overview';
+import Clients from './pages/dashboard/Clients';
+import Projects from './pages/dashboard/Projects';
+import Inbox from './pages/dashboard/Inbox';
+
+const CRM_NAV_ITEMS = [
+  { id: 'overview', label: 'Overview', path: '/dashboard/overview' },
+  { id: 'clients', label: 'Clients', path: '/dashboard/clients' },
+  { id: 'projects', label: 'Projects', path: '/dashboard/projects' },
+  { id: 'inbox', label: 'Inbox', path: '/dashboard/inbox' },
+];
+
+function isCrmNavActive(pathname, itemPath) {
+  if (itemPath === '/dashboard/overview') {
+    return pathname === '/dashboard/overview' || pathname === '/dashboard';
+  }
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}
 
 function AnimatedOutlet() {
   const location = useLocation();
@@ -76,7 +94,8 @@ function AppLayout() {
   } = useProject();
 
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
-  const { isConnected: isLiveConnected, isAuditRunning } = useWebSocket();
+  const location = useLocation();
+  const { isConnected: isLiveConnected, isAuditRunning } = useWebSocket(!!currentUser);
   const isEngineer = currentUser?.role === 'Engineer';
   const planTier = currentUser?.planTier || 'Seed';
   const subscriptionStatus = (currentUser?.subscriptionStatus || 'active').toLowerCase();
@@ -93,61 +112,54 @@ function AppLayout() {
 
       {/* ==== Main Content ==== */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Nav Bar */}
-        <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200/80">
-          <div className="flex items-center justify-between px-8 h-16">
-            {/* Left */}
-            <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 lg:hidden transition-colors">
-                <Menu size={20} />
-              </button>
-              <Link to="/dashboard/list" className="flex items-center gap-2.5 text-indigo-700 font-black text-xs tracking-[0.2em] uppercase">
-                <Network size={20} />
-                <span className="hidden md:inline">Cynapse Enterprise</span>
-              </Link>
-              <div className="hidden md:flex items-center gap-2">
-                <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">
-                  {planTier}
-                </span>
-                {subscriptionStatus !== 'canceled' && (
-                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                    subscriptionStatus === 'active'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : subscriptionStatus === 'past_due'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {subscriptionStatus.replace('_', ' ')}
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-xl">
+          <div className="flex flex-col">
+            <div className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-2 sm:px-8 min-h-[3.5rem]">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 lg:hidden"
+                >
+                  <Menu size={20} />
+                </button>
+                <Link to="/dashboard/list" className="flex min-w-0 items-center gap-2 text-indigo-700">
+                  <Network size={20} className="shrink-0" />
+                  <span className="hidden truncate font-black text-xs uppercase tracking-[0.2em] sm:inline">Cynapse Enterprise</span>
+                </Link>
+                <div className="hidden items-center gap-2 md:flex">
+                  <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">{planTier}</span>
+                  {subscriptionStatus !== 'canceled' && (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
+                        subscriptionStatus === 'active'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : subscriptionStatus === 'past_due'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {subscriptionStatus.replace('_', ' ')}
+                    </span>
+                  )}
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold ${
+                      isAuditRunning
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : isLiveConnected
+                          ? 'border-slate-200 bg-slate-100 text-slate-600'
+                          : 'border-rose-200 bg-rose-50 text-rose-600'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${isAuditRunning ? 'animate-pulse bg-emerald-500' : isLiveConnected ? 'bg-slate-400' : 'bg-rose-500'}`}
+                    />
+                    Live
                   </span>
-                )}
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border ${
-                  isAuditRunning
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : isLiveConnected
-                      ? 'bg-slate-100 text-slate-600 border-slate-200'
-                      : 'bg-rose-50 text-rose-600 border-rose-200'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isAuditRunning ? 'bg-emerald-500 animate-pulse' : isLiveConnected ? 'bg-slate-400' : 'bg-rose-500'}`} />
-                  Live
-                </span>
+                </div>
               </div>
-            </div>
 
-            {/* Center — Search */}
-            <div className="hidden md:flex flex-1 max-w-xl mx-8">
-              <div className="relative w-full group">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-700 transition-colors" size={16} />
-                <input
-                  type="text" placeholder="Search initiatives..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-7 pr-4 py-2 bg-transparent text-sm text-slate-900 outline-none border-b border-transparent focus:border-indigo-700 transition-all placeholder:text-slate-300"
-                />
-              </div>
-            </div>
-
-            {/* Right */}
-            <div className="flex items-center gap-3">
+              <div className="flex shrink-0 items-center gap-2 md:gap-3">
               {/* Sort */}
               <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="hidden sm:block text-xs bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 outline-none cursor-pointer font-bold transition-all">
                 <option value="rice">RICE ↓</option>
@@ -179,6 +191,57 @@ function AppLayout() {
               )}
 
               <ProfileMenu />
+              </div>
+            </div>
+
+            <div
+              className="w-full border-t border-indigo-200/90 bg-gradient-to-b from-indigo-50/90 to-white px-2 py-2.5 sm:px-6"
+              data-testid="crm-top-nav"
+            >
+              <div className="mx-auto flex max-w-6xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-4">
+                <span className="shrink-0 text-center text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 sm:min-w-[5.5rem] sm:text-left">
+                  CRM hub
+                </span>
+                <nav className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5 sm:justify-start" aria-label="CRM">
+                <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-indigo-200/80 bg-white p-1 shadow-sm">
+                  {CRM_NAV_ITEMS.map((item) => {
+                    const active = isCrmNavActive(location.pathname, item.path);
+                    return (
+                      <Link
+                        key={item.id}
+                        to={item.path}
+                        className="relative min-h-[2.25rem] min-w-[5rem] px-3 py-2 text-center text-[11px] font-extrabold sm:min-w-0 sm:px-4 sm:text-xs"
+                      >
+                        <span className={`relative z-10 ${active ? 'text-indigo-900' : 'text-slate-600 hover:text-indigo-800'}`}>{item.label}</span>
+                        {active && (
+                          <motion.div
+                            layoutId="crm-nav-pill"
+                            className="absolute inset-0 rounded-xl border border-indigo-200 bg-indigo-50/90 shadow-inner"
+                            transition={{ type: 'spring', bounce: 0.2, duration: 0.45 }}
+                          />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+                </nav>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 bg-slate-50/60 px-4 pb-3 pt-2 sm:px-8">
+              <div className="relative mx-auto max-w-3xl group">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  placeholder="Search initiatives..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
             </div>
           </div>
         </header>
@@ -219,6 +282,10 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/dashboard" element={<AppLayout />}>
           <Route index element={<Navigate to="list" replace />} />
+          <Route path="overview" element={<Overview />} />
+          <Route path="clients" element={<Clients />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="inbox" element={<Inbox />} />
           <Route path="list" element={<ListView />} />
           <Route path="board" element={<BoardView />} />
           <Route path="timeline" element={<TimelineView />} />

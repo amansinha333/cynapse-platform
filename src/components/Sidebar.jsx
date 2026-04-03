@@ -5,15 +5,13 @@ import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
   ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck,
   Database, Settings, Activity, ChevronsLeft, CreditCard,
-  Users, FolderKanban, Inbox as InboxIcon, LayoutGrid,
+  Users, Inbox as InboxIcon,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { springs, easings } from '../utils/motion';
 
 const CRM_NAV_ITEMS = [
-  { to: '/dashboard/overview', label: 'Overview', icon: LayoutGrid },
   { to: '/dashboard/clients', label: 'Clients', icon: Users },
-  { to: '/dashboard/projects', label: 'Projects', icon: FolderKanban },
   { to: '/dashboard/inbox', label: 'Inbox', icon: InboxIcon },
 ];
 

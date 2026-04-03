@@ -52,6 +52,7 @@ from routers.billing import router as billing_router
 from routers.invites import router as invites_router
 from routers.vault import router as vault_router
 from routers.crm import router as crm_router
+from routers.messages import router as messages_router
 from utils.encryption import decrypt_value, encrypt_value, ensure_encryption_key_is_secure
 from services.ai_service import run_node1_analysis, run_node2_analysis, run_rice_analysis
 from utils.websockets import dashboard_manager
@@ -174,6 +175,7 @@ app.include_router(billing_router)
 app.include_router(invites_router)
 app.include_router(vault_router)
 app.include_router(crm_router)
+app.include_router(messages_router)
 
 
 @app.get("/")
@@ -303,6 +305,11 @@ class VendorCreate(BaseModel):
     type: str = ""
     status: str = "Pending Review"
     risk: str = "Medium"
+    role_title: str = ""
+    contact_email: str = ""
+    avatar_url: str = ""
+    budget: str = ""
+    project_count: int = 0
 
 
 # =============================================================================
@@ -881,16 +888,52 @@ async def create_epic(data: EpicCreate, db: AsyncSession = Depends(get_db), curr
 async def list_vendors(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = await db.execute(select(Vendor).order_by(Vendor.created_at.desc()))
     vendors = result.scalars().all()
-    return [{"id": v.id, "name": v.name, "type": v.type, "status": v.status, "risk": v.risk} for v in vendors]
+    return [
+        {
+            "id": v.id,
+            "name": v.name,
+            "type": v.type,
+            "status": v.status,
+            "risk": v.risk,
+            "role_title": getattr(v, "role_title", None) or "",
+            "contact_email": getattr(v, "contact_email", None) or "",
+            "avatar_url": getattr(v, "avatar_url", None) or "",
+            "budget": getattr(v, "budget", None) or "",
+            "project_count": getattr(v, "project_count", None) or 0,
+        }
+        for v in vendors
+    ]
 
 
 @app.post("/api/vendors")
 async def create_vendor(data: VendorCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     vendor_id = data.id or f"v-{uuid.uuid4().hex[:6]}"
-    vendor = Vendor(id=vendor_id, name=data.name, type=data.type, status=data.status, risk=data.risk)
+    vendor = Vendor(
+        id=vendor_id,
+        name=data.name,
+        type=data.type,
+        status=data.status,
+        risk=data.risk,
+        role_title=data.role_title or "",
+        contact_email=data.contact_email or "",
+        avatar_url=data.avatar_url or "",
+        budget=data.budget or "",
+        project_count=int(data.project_count or 0),
+    )
     db.add(vendor)
     await db.flush()
-    return {"id": vendor.id, "name": vendor.name, "type": vendor.type, "status": vendor.status, "risk": vendor.risk}
+    return {
+        "id": vendor.id,
+        "name": vendor.name,
+        "type": vendor.type,
+        "status": vendor.status,
+        "risk": vendor.risk,
+        "role_title": vendor.role_title or "",
+        "contact_email": vendor.contact_email or "",
+        "avatar_url": vendor.avatar_url or "",
+        "budget": vendor.budget or "",
+        "project_count": vendor.project_count or 0,
+    }
 
 
 # =============================================================================
@@ -1154,7 +1197,14 @@ async def update_me(
 
 @app.get("/api/users")
 async def list_users(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    if current_user.workspace_id:
+        result = await db.execute(
+            select(User)
+            .where(User.workspace_id == current_user.workspace_id)
+            .order_by(User.created_at.desc())
+        )
+    else:
+        result = await db.execute(select(User).where(User.id == current_user.id))
     users = result.scalars().all()
     return [
         {
@@ -1164,6 +1214,7 @@ async def list_users(db: AsyncSession = Depends(get_db), current_user: User = De
             "role": u.role,
             "status": u.status,
             "avatar_url": u.avatar_url,
+            "workspace_id": u.workspace_id,
             "created_at": u.created_at.isoformat() if u.created_at is not None else "",
         }
         for u in users

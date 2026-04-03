@@ -108,10 +108,25 @@ export const createVendor  = (data) => request('/api/vendors', { method: 'POST',
 // ---------------------------------------------------------------------------
 export const fetchCRMStats = () => request('/api/crm/stats');
 export const fetchClients = () => request('/api/crm/clients');
+export const createClient = (payload) =>
+  request('/api/crm/clients', { method: 'POST', body: JSON.stringify(payload) });
 export const fetchProjects = () => request('/api/crm/projects');
 export const fetchInbox = () => request('/api/crm/inbox');
 export const markNotificationRead = (id) =>
   request(`/api/crm/inbox/${encodeURIComponent(id)}/read`, { method: 'PATCH' });
+
+// Workspace teammates & DM
+export const fetchWorkspaceMembers = () => request('/api/workspace/members');
+export const fetchConversations = () => request('/api/conversations');
+export const openOrCreateDM = (recipientId) =>
+  request('/api/conversations/dm', { method: 'POST', body: JSON.stringify({ recipient_id: recipientId }) });
+export const fetchConversationMessages = (conversationId) =>
+  request(`/api/conversations/${encodeURIComponent(conversationId)}/messages`);
+export const postChatMessage = (conversationId, body) =>
+  request(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
 
 // ---------------------------------------------------------------------------
 // AUDIT LOG

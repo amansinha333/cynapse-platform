@@ -3,10 +3,12 @@ CRM hub API — maps Clients → Vendor, Projects → Epic (+ feature counts), I
 """
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +17,18 @@ from database import get_db
 from models import AuditEvent, Epic, Feature, User, Vendor
 
 router = APIRouter(prefix="/api/crm", tags=["crm"])
+
+
+class ClientCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=240)
+    company: str = ""
+    role_title: str = ""
+    contact_email: str = ""
+    avatar_url: str = ""
+    budget: str = ""
+    project_count: int = 0
+    status: str = "Pending Review"
+    risk: str = "Medium"
 
 # Ephemeral read state (resets on server restart; OK for dev / single-node)
 _read_by_user: dict[str, set[str]] = {}
@@ -45,6 +59,42 @@ async def crm_stats(
     }
 
 
+@router.post("/clients")
+async def crm_create_client(
+    data: ClientCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    vid = f"v-{uuid.uuid4().hex[:8]}"
+    v = Vendor(
+        id=vid,
+        name=data.name.strip(),
+        type=(data.company or "").strip(),
+        status=data.status,
+        risk=data.risk,
+        role_title=(data.role_title or "").strip(),
+        contact_email=(data.contact_email or "").strip(),
+        avatar_url=(data.avatar_url or "").strip(),
+        budget=(data.budget or "").strip(),
+        project_count=int(data.project_count or 0),
+    )
+    db.add(v)
+    await db.flush()
+    return {
+        "id": v.id,
+        "name": v.name,
+        "company": v.type or "—",
+        "role_title": v.role_title or "",
+        "contact_email": v.contact_email or "",
+        "avatar_url": v.avatar_url or "",
+        "budget": v.budget or "",
+        "project_count": v.project_count or 0,
+        "status": v.status,
+        "risk": v.risk,
+        "verified": v.status == "Approved",
+    }
+
+
 @router.get("/clients")
 async def crm_clients(
     db: AsyncSession = Depends(get_db),
@@ -57,7 +107,12 @@ async def crm_clients(
             "id": v.id,
             "name": v.name,
             "company": v.type or "—",
-            "email": "",
+            "role_title": getattr(v, "role_title", None) or "",
+            "contact_email": getattr(v, "contact_email", None) or "",
+            "avatar_url": getattr(v, "avatar_url", None) or "",
+            "budget": getattr(v, "budget", None) or "",
+            "project_count": int(getattr(v, "project_count", None) or 0),
+            "email": getattr(v, "contact_email", None) or "",
             "status": v.status,
             "risk": v.risk,
             "verified": v.status == "Approved",

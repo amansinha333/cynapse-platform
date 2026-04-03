@@ -111,6 +111,37 @@ async def init_db():
                     await conn.execute(text(stmt))
                 except SQLAlchemyError:
                     pass
+            try:
+                v_info = await conn.execute(text("PRAGMA table_info(vendors)"))
+                v_cols = {row[1] for row in v_info.fetchall()}
+            except SQLAlchemyError:
+                v_cols = set()
+            vendor_migrations = [
+                ("role_title", "ALTER TABLE vendors ADD COLUMN role_title VARCHAR DEFAULT ''"),
+                ("contact_email", "ALTER TABLE vendors ADD COLUMN contact_email VARCHAR DEFAULT ''"),
+                ("avatar_url", "ALTER TABLE vendors ADD COLUMN avatar_url TEXT DEFAULT ''"),
+                ("budget", "ALTER TABLE vendors ADD COLUMN budget VARCHAR DEFAULT ''"),
+                ("project_count", "ALTER TABLE vendors ADD COLUMN project_count INTEGER DEFAULT 0"),
+            ]
+            for column_name, stmt in vendor_migrations:
+                if column_name in v_cols:
+                    continue
+                try:
+                    await conn.execute(text(stmt))
+                except SQLAlchemyError:
+                    pass
+        elif engine.dialect.name == "postgresql":
+            for stmt in (
+                "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS role_title VARCHAR DEFAULT ''",
+                "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_email VARCHAR DEFAULT ''",
+                "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT ''",
+                "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS budget VARCHAR DEFAULT ''",
+                "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS project_count INTEGER DEFAULT 0",
+            ):
+                try:
+                    await conn.execute(text(stmt))
+                except SQLAlchemyError:
+                    pass
 
 
 async def get_db():

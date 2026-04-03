@@ -66,6 +66,11 @@ class Vendor(Base):
     type = Column(String, default="")
     status = Column(String, default="Pending Review")  # Approved | Pending Review
     risk = Column(String, default="Medium")  # Low | Medium | High
+    role_title = Column(String, default="")
+    contact_email = Column(String, default="")
+    avatar_url = Column(Text, default="")
+    budget = Column(String, default="")
+    project_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -165,3 +170,34 @@ class BillingWebhookEvent(Base):
     id = Column(String, primary_key=True, index=True)  # Stripe event id
     event_type = Column(String, nullable=False)
     processed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Conversation(Base):
+    """Workspace-scoped DM thread (two members)."""
+
+    __tablename__ = "conversations"
+
+    id = Column(String, primary_key=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    kind = Column(String, default="dm")
+    dm_key = Column(String, nullable=True, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+
+class ConversationMember(Base):
+    __tablename__ = "conversation_members"
+
+    conversation_id = Column(String, ForeignKey("conversations.id"), primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    last_read_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(String, primary_key=True, index=True)
+    conversation_id = Column(String, ForeignKey("conversations.id"), nullable=False, index=True)
+    sender_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    body = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

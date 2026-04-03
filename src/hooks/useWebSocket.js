@@ -65,6 +65,13 @@ export default function useWebSocket(shouldConnect = true) {
             ws.send(JSON.stringify({ type: 'pong' }));
             return;
           }
+          if (parsed?.type === 'chat_message') {
+            try {
+              window.dispatchEvent(new CustomEvent('cynapse-chat-message', { detail: parsed }));
+            } catch {
+              /* no-op */
+            }
+          }
           setLastEvent(parsed);
           if (parsed?.type === 'audit_started') setIsAuditRunning(true);
           if (parsed?.type === 'audit_completed' || parsed?.type === 'audit_error') setIsAuditRunning(false);

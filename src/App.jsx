@@ -48,22 +48,15 @@ import Governance from './pages/platform/Governance';
 import Prioritization from './pages/platform/Prioritization';
 import Enterprise from './pages/solutions/Enterprise';
 import CompanyAbout from './pages/company/About';
-import Overview from './pages/dashboard/Overview';
 import Clients from './pages/dashboard/Clients';
-import Projects from './pages/dashboard/Projects';
 import Inbox from './pages/dashboard/Inbox';
 
 const CRM_NAV_ITEMS = [
-  { id: 'overview', label: 'Overview', path: '/dashboard/overview' },
   { id: 'clients', label: 'Clients', path: '/dashboard/clients' },
-  { id: 'projects', label: 'Projects', path: '/dashboard/projects' },
   { id: 'inbox', label: 'Inbox', path: '/dashboard/inbox' },
 ];
 
 function isCrmNavActive(pathname, itemPath) {
-  if (itemPath === '/dashboard/overview') {
-    return pathname === '/dashboard/overview' || pathname === '/dashboard';
-  }
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 }
 
@@ -114,8 +107,8 @@ function AppLayout() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-xl">
           <div className="flex flex-col">
-            <div className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-2 sm:px-8 min-h-[3.5rem]">
-              <div className="flex min-w-0 items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-8 min-h-[3.5rem]">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -123,11 +116,11 @@ function AppLayout() {
                 >
                   <Menu size={20} />
                 </button>
-                <Link to="/dashboard/list" className="flex min-w-0 items-center gap-2 text-indigo-700">
+                <Link to="/dashboard/list" className="flex min-w-0 shrink-0 items-center gap-2 text-indigo-700">
                   <Network size={20} className="shrink-0" />
                   <span className="hidden truncate font-black text-xs uppercase tracking-[0.2em] sm:inline">Cynapse Enterprise</span>
                 </Link>
-                <div className="hidden items-center gap-2 md:flex">
+                <div className="hidden items-center gap-2 sm:flex shrink-0">
                   <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">{planTier}</span>
                   {subscriptionStatus !== 'canceled' && (
                     <span
@@ -156,6 +149,19 @@ function AppLayout() {
                     />
                     Live
                   </span>
+                </div>
+                <div className="relative min-h-[2.5rem] min-w-0 w-full flex-1 basis-[200px] sm:max-w-md md:max-w-lg lg:max-w-xl">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    aria-hidden
+                  />
+                  <input
+                    type="search"
+                    placeholder="Search initiatives..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-full w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
                 </div>
               </div>
 
@@ -195,28 +201,24 @@ function AppLayout() {
             </div>
 
             <div
-              className="w-full border-t border-indigo-200/90 bg-gradient-to-b from-indigo-50/90 to-white px-2 py-2.5 sm:px-6"
+              className="w-full border-t border-slate-100 bg-slate-50/40 px-2 py-2 sm:px-6"
               data-testid="crm-top-nav"
             >
-              <div className="mx-auto flex max-w-6xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-4">
-                <span className="shrink-0 text-center text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 sm:min-w-[5.5rem] sm:text-left">
-                  CRM hub
-                </span>
-                <nav className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5 sm:justify-start" aria-label="CRM">
-                <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-indigo-200/80 bg-white p-1 shadow-sm">
+              <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-start gap-1.5" aria-label="CRM">
+                <div className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-2xl border border-slate-100 bg-white p-1 shadow-[0_2px_12px_rgb(0,0,0,0.04)]">
                   {CRM_NAV_ITEMS.map((item) => {
                     const active = isCrmNavActive(location.pathname, item.path);
                     return (
                       <Link
                         key={item.id}
                         to={item.path}
-                        className="relative min-h-[2.25rem] min-w-[5rem] px-3 py-2 text-center text-[11px] font-extrabold sm:min-w-0 sm:px-4 sm:text-xs"
+                        className="relative min-h-[2.25rem] min-w-[5.5rem] px-4 py-2 text-center text-[11px] font-extrabold sm:text-xs"
                       >
                         <span className={`relative z-10 ${active ? 'text-indigo-900' : 'text-slate-600 hover:text-indigo-800'}`}>{item.label}</span>
                         {active && (
                           <motion.div
                             layoutId="crm-nav-pill"
-                            className="absolute inset-0 rounded-xl border border-indigo-200 bg-indigo-50/90 shadow-inner"
+                            className="absolute inset-0 rounded-xl border border-indigo-100 bg-indigo-50/95 shadow-inner"
                             transition={{ type: 'spring', bounce: 0.2, duration: 0.45 }}
                           />
                         )}
@@ -224,24 +226,7 @@ function AppLayout() {
                     );
                   })}
                 </div>
-                </nav>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 bg-slate-50/60 px-4 pb-3 pt-2 sm:px-8">
-              <div className="relative mx-auto max-w-3xl group">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600"
-                  aria-hidden
-                />
-                <input
-                  type="search"
-                  placeholder="Search initiatives..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
+              </nav>
             </div>
           </div>
         </header>
@@ -282,9 +267,9 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/dashboard" element={<AppLayout />}>
           <Route index element={<Navigate to="list" replace />} />
-          <Route path="overview" element={<Overview />} />
+          <Route path="overview" element={<Navigate to="/dashboard/clients" replace />} />
+          <Route path="projects" element={<Navigate to="/dashboard/clients" replace />} />
           <Route path="clients" element={<Clients />} />
-          <Route path="projects" element={<Projects />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="list" element={<ListView />} />
           <Route path="board" element={<BoardView />} />

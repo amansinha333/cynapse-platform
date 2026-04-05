@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield } from "lucide-react";
+import Logo from "./Logo";
 
 const MARQUEE_TEXT = "CYNAPSE ENTERPRISE • UNIVERSAL AI COMPLIANCE ENGINE • ";
 const LOAD_DURATION = 3200;
@@ -84,20 +84,7 @@ export default function BrandedLoader({ onComplete }) {
               zIndex: 10,
             }}
           >
-            <Shield
-              style={{ width: 20, height: 20, color: "#22c55e", fill: "#22c55e" }}
-            />
-            <span
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 900,
-                fontSize: 16,
-                color: "#e2e8f0",
-                letterSpacing: "-0.03em",
-              }}
-            >
-              Cynapse
-            </span>
+            <Logo iconOnly className="h-5 w-5 shrink-0" variant="dark" />
           </div>
 
           {/* Animated vertical bars top-right (like reference) */}

@@ -11,6 +11,7 @@ import SafeScrollReveal from "../components/ui/SafeScrollReveal";
 import MagneticButton from "../components/ui/MagneticButton";
 import IsolatedHero3D from "../components/3d/IsolatedHero3D";
 import BrandedLoader from "../components/ui/BrandedLoader";
+import Logo from "../components/ui/Logo";
 
 export default function LandingPage() {
   const [activeTab, setActiveTab] = useState(0);
@@ -122,9 +123,8 @@ export default function LandingPage() {
           className="bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] px-6 h-[72px] flex items-center justify-between max-w-[1300px] mx-auto pointer-events-auto border border-slate-100"
         >
           <div className="flex items-center gap-10">
-            <a href="/" className="flex items-center gap-2 text-2xl font-black tracking-tighter text-[#042f1f]">
-              <Shield className="w-6 h-6 text-[#22c55e] fill-[#22c55e]" />
-              Cynapse
+            <a href="/" className="flex items-center shrink-0" aria-label="Cynapse home">
+              <Logo className="h-8 md:h-10 w-auto text-emerald-500" />
             </a>
 
             <div className="hidden md:flex items-center gap-2 lg:gap-4 text-[13px] lg:text-[14px] font-semibold text-[#042f1f]">
@@ -924,9 +924,8 @@ export default function LandingPage() {
 
           <div className="flex flex-col lg:flex-row justify-between gap-16">
             <div className="flex-1">
-              <a href="/" className="flex items-center gap-2 text-2xl font-black tracking-tight text-white mb-8 hover:opacity-80 transition-opacity w-max">
-                <Shield className="w-8 h-8 text-[#22c55e] fill-[#22c55e]" />
-                Cynapse
+              <a href="/" className="mb-8 flex w-max shrink-0 items-center hover:opacity-80 transition-opacity" aria-label="Cynapse home">
+                <Logo className="h-9 w-auto text-emerald-500 md:h-10" variant="dark" />
               </a>
 
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max">

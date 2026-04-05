@@ -7,6 +7,7 @@ import { pageTransition } from './utils/motion';
 
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import Sidebar from './components/Sidebar';
+import Logo from './components/ui/Logo';
 import NotificationCenter from './components/NotificationCenter';
 import ProfileMenu from './components/ProfileMenu';
 import AuthView from './components/AuthView';
@@ -122,7 +123,7 @@ function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="sticky top-0 z-40 flex h-16 w-full shrink-0 items-center border-b border-slate-100 bg-white px-4 sm:px-6">
           <div className="flex h-full w-full items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -131,6 +132,8 @@ function AppLayout() {
               >
                 <Menu size={20} />
               </button>
+              <Logo className="h-8 w-auto shrink-0 lg:hidden" />
+              <Logo iconOnly className="hidden h-8 w-8 shrink-0 lg:inline-flex" />
               <p className="min-w-0 truncate text-sm font-semibold text-slate-800 sm:text-base" aria-live="polite">
                 {pageTitle}
               </p>

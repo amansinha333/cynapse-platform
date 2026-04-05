@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Network } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import Logo from './ui/Logo';
 import { ENTERPRISE_ROLES } from '../config/constants';
 import { useProject } from '../context/ProjectContext';
 import { loginUser, registerUser, setAuthToken, setRefreshToken, API_BASE } from '../utils/api';
@@ -91,7 +92,11 @@ export default function AuthView() {
             Back to landing page
           </Link>
         </div>
-        <div className="flex justify-center text-indigo-600 dark:text-indigo-400 mb-4"><Network size={48} /></div>
+        <div className="mb-4 flex justify-center">
+          <Link to="/" className="inline-flex" aria-label="Cynapse home">
+            <Logo className="h-12 w-auto text-emerald-500" />
+          </Link>
+        </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">Sign in to Cynapse Enterprise</h2>
         <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-2">Hybrid Database Architecture</p>
       </div>

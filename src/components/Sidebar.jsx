@@ -3,12 +3,13 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   List, Columns3, CalendarRange, LayoutDashboard, TrendingUp,
-  ShieldCheck, Globe, ScrollText, Network, Compass, BookOpenCheck,
+  ShieldCheck, Globe, ScrollText, Compass, BookOpenCheck,
   Database, Settings, Activity, ChevronsLeft, CreditCard,
   Users, Inbox as InboxIcon,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { springs, easings } from '../utils/motion';
+import Logo from './ui/Logo';
 
 const CRM_NAV_ITEMS = [
   { to: '/dashboard/clients', label: 'Clients', icon: Users },
@@ -183,33 +184,33 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
       {/* Brand Header */}
       <div className={`${sidebarOpen ? 'px-6' : 'px-0 flex justify-center'} py-8 relative z-10 transition-[padding] duration-300`}>
         <motion.div
-          className="flex items-center gap-3"
+          className="flex min-h-8 items-center"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-          <motion.div
-            whileHover={{ scale: 1.08, rotateY: 12 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #24389c, #6366f1, #8b5cf6)',
-              boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
-            }}
-          >
-            <Network size={20} className="text-white" />
-          </motion.div>
-          <AnimatePresence>
-            {sidebarOpen && (
+          <AnimatePresence mode="wait">
+            {sidebarOpen ? (
               <motion.div
+                key="full"
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.2, ease: easings.outExpo }}
-                className="overflow-hidden whitespace-nowrap"
+                className="flex min-h-8 items-center overflow-hidden"
               >
-                <div className="text-lg font-black gradient-text tracking-tighter leading-none font-['Manrope',_sans-serif]">CYNAPSE</div>
-                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-1">Enterprise</div>
+                <Logo className="h-8 w-auto" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="icon"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ duration: 0.2, ease: easings.outExpo }}
+                className="flex shrink-0 items-center justify-center"
+              >
+                <Logo className="h-10 w-10" iconOnly />
               </motion.div>
             )}
           </AnimatePresence>

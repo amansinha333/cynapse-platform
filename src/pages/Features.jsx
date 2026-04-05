@@ -1,16 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, BarChart3, Gavel, ArrowRight, CheckCircle2 } from "lucide-react";
+import { BarChart3, Gavel, ArrowRight, CheckCircle2 } from "lucide-react";
+import Logo from "../components/ui/Logo";
 
 export default function Features() {
   return (
     <div className="min-h-screen bg-[#042417] text-slate-100">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#042417]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <Link to="/" className="flex items-center gap-2 text-lg font-black tracking-tight text-white hover:opacity-90">
-            <Shield className="h-7 w-7 text-[#22c55e]" />
-            Cynapse
+          <Link to="/" className="flex shrink-0 items-center hover:opacity-90" aria-label="Cynapse home">
+            <Logo className="h-8 w-auto text-emerald-500 md:h-9" variant="dark" />
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/about" className="hidden text-sm font-semibold text-slate-400 hover:text-white sm:inline">

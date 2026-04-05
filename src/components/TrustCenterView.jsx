@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Shield, ShieldCheck, FileCheck, Lock, CheckCircle, ExternalLink, Download, ArrowRight, Activity, Globe } from 'lucide-react';
+import { ShieldCheck, FileCheck, Lock, CheckCircle, ExternalLink, Download, ArrowRight, Activity, Globe } from 'lucide-react';
+import Logo from './ui/Logo';
 
 const CERTIFICATIONS = [
   { id: 'soc2', name: 'SOC 2 Type II', desc: 'Secure data management and privacy.', icon: ShieldCheck, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-800' },
@@ -23,11 +24,13 @@ export default function TrustCenterView() {
     <div className="max-w-5xl mx-auto pb-12">
       {/* Header section */}
       <div className="text-center mb-12 pt-8">
-        <div className="inline-flex items-center justify-center p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full mb-6 relative">
-          <div className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-20"></div>
-          <Shield className="text-emerald-600 dark:text-emerald-400 relative z-10" size={32} />
+        <div className="relative mb-6 inline-flex items-center justify-center rounded-full bg-emerald-100 p-3 dark:bg-emerald-900/30">
+          <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20"></div>
+          <Logo className="relative z-10 h-10 w-auto text-emerald-500 md:h-11" />
         </div>
-        <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Cynapse Enterprise Security Posture</h1>
+        <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          Enterprise Security Posture
+        </h1>
         <div className="inline-flex items-center gap-2 px-4 py-2 border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/20 rounded-full shadow-sm">
           <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></div>
           <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 tracking-wide uppercase">System Status: Secure & Compliant</span>

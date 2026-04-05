@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import { setAuthToken, setRefreshToken, fetchCurrentUser } from '../utils/api';
+import Logo from '../components/ui/Logo';
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
@@ -42,7 +43,10 @@ export default function OAuthCallback() {
   }, [location, navigate, setCurrentUser]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-8 bg-slate-50 px-4 dark:bg-slate-900">
+      <Link to="/" className="inline-flex shrink-0" aria-label="Cynapse home">
+        <Logo className="h-10 w-auto sm:h-12" />
+      </Link>
       <div className="flex flex-col items-center gap-4">
         <div className="animate-spin text-indigo-600 dark:text-indigo-400">
            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24">

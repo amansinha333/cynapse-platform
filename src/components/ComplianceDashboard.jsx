@@ -85,7 +85,7 @@ const ComplianceDashboard = () => {
             <Sparkles size={10} className="text-indigo-500" /> Project Monitor
           </p>
           <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-3xl font-extrabold tracking-tight font-['Manrope',_sans-serif]">
-            <Logo className="h-9 w-auto shrink-0 md:h-10" />
+            <Logo className="h-auto w-auto shrink-0" />
             <span className="text-slate-300 font-light">|</span>
             <span className="text-slate-600 dark:text-slate-300">Sovereign Architect</span>
           </h1>

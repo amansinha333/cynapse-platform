@@ -94,7 +94,7 @@ export default function AuthView() {
         </div>
         <div className="mb-4 flex justify-center">
           <Link to="/" className="inline-flex" aria-label="Cynapse home">
-            <Logo className="h-12 w-auto text-emerald-500" />
+            <Logo className="h-auto max-h-32 w-auto text-emerald-500" />
           </Link>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">Sign in to Cynapse Enterprise</h2>

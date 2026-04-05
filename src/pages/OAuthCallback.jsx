@@ -45,7 +45,7 @@ export default function OAuthCallback() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 bg-slate-50 px-4 dark:bg-slate-900">
       <Link to="/" className="inline-flex shrink-0" aria-label="Cynapse home">
-        <Logo className="h-10 w-auto sm:h-12" />
+        <Logo className="h-auto max-h-28 w-auto sm:max-h-32" />
       </Link>
       <div className="flex flex-col items-center gap-4">
         <div className="animate-spin text-indigo-600 dark:text-indigo-400">

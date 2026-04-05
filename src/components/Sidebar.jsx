@@ -197,9 +197,9 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.2, ease: easings.outExpo }}
-                className="flex min-h-8 items-center overflow-hidden"
+                className="flex w-full min-h-8 items-center justify-center overflow-visible"
               >
-                <Logo className="h-8 w-auto" />
+                <Logo className="h-auto w-full max-w-[11rem] py-0.5" />
               </motion.div>
             ) : (
               <motion.div

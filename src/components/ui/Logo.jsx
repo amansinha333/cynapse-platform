@@ -4,13 +4,13 @@ import React from 'react';
 const MARK_SRC = '/cynapse-logo.png?v=2';
 
 /**
- * Raster 3D icon + vector wordmark (PNG has no text; typography is added here).
- * `iconOnly`: cropped mark only, for collapsed sidebar.
+ * Raster 3D icon + wordmark stacked vertically (mark above CYNAPSE / ENTERPRISE) for readable, untruncated text.
+ * `iconOnly`: cropped mark only, for collapsed sidebar / desktop top bar chip.
  * `variant="dark"`: light text for dark marketing headers.
- * `enterprise={false}`: hide divider + ENTERPRISE.
+ * `enterprise={false}`: show CYNAPSE only.
  */
 export default function Logo({
-  className = 'h-8 w-auto',
+  className = 'h-auto w-auto',
   iconOnly = false,
   variant = 'default',
   enterprise = true,
@@ -20,8 +20,8 @@ export default function Logo({
   const cynapseCls = dark
     ? 'text-emerald-100'
     : 'text-emerald-900 dark:text-emerald-100';
-  const dividerCls = dark ? 'text-teal-400/70' : 'text-teal-600/50';
   const enterpriseCls = dark ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400';
+  const lockupAriaLabel = enterprise ? 'Cynapse Enterprise' : 'Cynapse';
 
   const mark = (
     <img
@@ -30,7 +30,7 @@ export default function Logo({
       aria-hidden
       draggable={false}
       decoding="async"
-      className="h-full w-[3.25rem] shrink-0 object-cover object-center sm:w-14"
+      className="h-9 w-11 shrink-0 object-cover object-center sm:h-10 sm:w-12"
     />
   );
 
@@ -54,31 +54,23 @@ export default function Logo({
 
   return (
     <span
-      className={`inline-flex items-center gap-2.5 ${className}`}
+      className={`inline-flex flex-col items-center gap-1 ${className}`}
       role="img"
-      aria-label="Cynapse Enterprise"
+      aria-label={lockupAriaLabel}
     >
       {mark}
-      <span className="flex min-w-0 items-baseline gap-2 font-sans leading-none">
+      <span className="flex flex-col items-center gap-0 font-sans leading-tight">
         <span
-          className={`whitespace-nowrap text-sm font-extrabold tracking-tight sm:text-base ${cynapseCls}`}
+          className={`text-center text-[11px] font-extrabold tracking-wide sm:text-xs ${cynapseCls}`}
         >
           CYNAPSE
         </span>
         {enterprise && (
-          <>
-            <span
-              className={`select-none text-sm font-light opacity-80 ${dividerCls}`}
-              aria-hidden
-            >
-              |
-            </span>
-            <span
-              className={`whitespace-nowrap text-[10px] font-semibold tracking-[0.22em] sm:text-xs ${enterpriseCls}`}
-            >
-              ENTERPRISE
-            </span>
-          </>
+          <span
+            className={`text-center text-[9px] font-semibold tracking-[0.18em] sm:text-[10px] ${enterpriseCls}`}
+          >
+            ENTERPRISE
+          </span>
         )}
       </span>
     </span>

@@ -124,7 +124,7 @@ export default function LandingPage() {
         >
           <div className="flex items-center gap-10">
             <a href="/" className="flex items-center shrink-0" aria-label="Cynapse home">
-              <Logo className="h-8 md:h-10 w-auto text-emerald-500" />
+              <Logo className="h-auto max-h-[5rem] w-auto text-emerald-500 md:max-h-[5.5rem]" />
             </a>
 
             <div className="hidden md:flex items-center gap-2 lg:gap-4 text-[13px] lg:text-[14px] font-semibold text-[#042f1f]">
@@ -925,7 +925,7 @@ export default function LandingPage() {
           <div className="flex flex-col lg:flex-row justify-between gap-16">
             <div className="flex-1">
               <a href="/" className="mb-8 flex w-max shrink-0 items-center hover:opacity-80 transition-opacity" aria-label="Cynapse home">
-                <Logo className="h-9 w-auto text-emerald-500 md:h-10" variant="dark" />
+                <Logo className="h-auto max-h-[5.25rem] w-auto text-emerald-500 md:max-h-[5.75rem]" variant="dark" />
               </a>
 
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max">

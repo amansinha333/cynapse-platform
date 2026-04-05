@@ -8,7 +8,7 @@ export default function TermsOfService() {
       <header className="border-b border-white/10 bg-[#042417]/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-6">
           <Link to="/" className="flex shrink-0 items-center hover:opacity-90" aria-label="Cynapse home">
-            <Logo className="h-8 w-auto text-emerald-500 md:h-9" variant="dark" />
+            <Logo className="h-auto w-auto text-emerald-500" variant="dark" />
           </Link>
           <Link to="/" className="text-sm font-semibold text-[#22c55e] hover:text-emerald-300">
             Back to home

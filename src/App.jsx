@@ -132,7 +132,7 @@ function AppLayout() {
               >
                 <Menu size={20} />
               </button>
-              <Logo className="h-8 w-auto shrink-0 lg:hidden" />
+              <Logo className="h-auto max-h-[3.75rem] w-auto shrink-0 py-0.5 lg:hidden" />
               <Logo iconOnly className="hidden h-8 w-8 shrink-0 lg:inline-flex" />
               <p className="min-w-0 truncate text-sm font-semibold text-slate-800 sm:text-base" aria-live="polite">
                 {pageTitle}

@@ -26,7 +26,7 @@ export default function TrustCenterView() {
       <div className="text-center mb-12 pt-8">
         <div className="relative mb-6 inline-flex items-center justify-center rounded-full bg-emerald-100 p-3 dark:bg-emerald-900/30">
           <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20"></div>
-          <Logo className="relative z-10 h-10 w-auto text-emerald-500 md:h-11" />
+          <Logo className="relative z-10 h-auto w-auto text-emerald-500" />
         </div>
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Enterprise Security Posture

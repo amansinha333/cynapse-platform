@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, FileCheck, Lock, CheckCircle, ExternalLink, Download, ArrowRight, Activity, Globe } from 'lucide-react';
-import Logo from './ui/Logo';
+import Logo, { LOGO_CLASS } from './ui/Logo';
 
 const CERTIFICATIONS = [
   { id: 'soc2', name: 'SOC 2 Type II', desc: 'Secure data management and privacy.', icon: ShieldCheck, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-800' },
@@ -26,7 +26,7 @@ export default function TrustCenterView() {
       <div className="text-center mb-12 pt-8">
         <div className="relative mb-6 inline-flex items-center justify-center rounded-full bg-emerald-100 p-3 dark:bg-emerald-900/30">
           <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20"></div>
-          <Logo className="relative z-10 h-auto w-auto text-emerald-500" />
+          <Logo className={LOGO_CLASS.trust} />
         </div>
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Enterprise Security Posture

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import Logo from "../components/ui/Logo";
+import Logo, { LOGO_CLASS } from "../components/ui/Logo";
 
 export default function PrivacyPolicy() {
   return (
@@ -8,7 +8,7 @@ export default function PrivacyPolicy() {
       <header className="border-b border-white/10 bg-[#042417]/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-6">
           <Link to="/" className="flex shrink-0 items-center hover:opacity-90" aria-label="Cynapse home">
-            <Logo className="h-auto w-auto text-emerald-500" variant="dark" />
+            <Logo className={LOGO_CLASS.marketing} variant="dark" />
           </Link>
           <Link to="/" className="text-sm font-semibold text-[#22c55e] hover:text-emerald-300">
             Back to home

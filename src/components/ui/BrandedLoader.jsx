@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Logo from "./Logo";
+import Logo, { LOGO_CLASS } from "./Logo";
 
 const MARQUEE_TEXT = "CYNAPSE ENTERPRISE • UNIVERSAL AI COMPLIANCE ENGINE • ";
 const LOAD_DURATION = 3200;
@@ -72,19 +72,19 @@ export default function BrandedLoader({ onComplete }) {
             cursor: "wait",
           }}
         >
-          {/* Corner brand badge */}
+          {/* Corner brand lockup — full wordmark, left-aligned */}
           <div
             style={{
               position: "absolute",
-              top: 28,
-              left: 32,
+              top: 24,
+              left: 28,
               display: "flex",
-              alignItems: "center",
-              gap: 8,
+              alignItems: "flex-start",
               zIndex: 10,
+              maxWidth: "min(92vw, 14rem)",
             }}
           >
-            <Logo iconOnly className="h-5 w-5 shrink-0" variant="dark" />
+            <Logo variant="dark" align="start" className={LOGO_CLASS.loader} />
           </div>
 
           {/* Animated vertical bars top-right (like reference) */}

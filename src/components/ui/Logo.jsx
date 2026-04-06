@@ -4,16 +4,45 @@ import React from 'react';
 const MARK_SRC = '/cynapse-logo.png?v=2';
 
 /**
- * Raster 3D icon + wordmark stacked vertically (mark above CYNAPSE / ENTERPRISE) for readable, untruncated text.
+ * Use these with `<Logo className={LOGO_CLASS.*} />` so every page keeps the same lockup chrome.
+ * Do not pass `w-auto` here — the component uses `!w-max` for correct wordmark width.
+ */
+export const LOGO_CLASS = {
+  marketing: 'h-auto shrink-0 text-emerald-500',
+  neutral: 'h-auto shrink-0',
+  trust: 'relative z-10 h-auto shrink-0 text-emerald-500',
+  sidebarExpanded: 'h-auto shrink-0 max-w-[14rem] py-0.5',
+  appMobileCompact: 'h-auto shrink-0 max-h-[3.75rem] py-0.5',
+  loader: 'h-auto shrink-0',
+  iconOnlyDesktopChip: 'hidden h-8 w-8 shrink-0 lg:inline-flex',
+  iconOnlySidebar: 'h-10 w-10',
+};
+
+/**
+ * PNG ~1024×559. Taller aspect = more mark height (less “squashed” vs text); still crops low glow via object-top.
+ */
+const MARK_ASPECT = 'aspect-[1024/448]';
+
+const MARK_MIN_W = {
+  compact: 'min-w-[4.5rem] sm:min-w-[5rem]',
+  full: 'min-w-[7rem] sm:min-w-[8.25rem]',
+};
+
+/**
+ * Raster 3D mark + single-line wordmark (“CYNAPSE ENTERPRISE”) directly below; mark stretches to full phrase width.
  * `iconOnly`: cropped mark only, for collapsed sidebar / desktop top bar chip.
  * `variant="dark"`: light text for dark marketing headers.
  * `enterprise={false}`: show CYNAPSE only.
+ * `compact`: smaller lockup for dense chrome (e.g. mobile `h-16` app bar).
+ * `align="start"`: left-align lockup (e.g. loader corner).
  */
 export default function Logo({
   className = 'h-auto w-auto',
   iconOnly = false,
   variant = 'default',
   enterprise = true,
+  compact = false,
+  align = 'center',
 }) {
   const dark = variant === 'dark';
 
@@ -23,15 +52,27 @@ export default function Logo({
   const enterpriseCls = dark ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400';
   const lockupAriaLabel = enterprise ? 'Cynapse Enterprise' : 'Cynapse';
 
+  const wordRowJustify = align === 'start' ? 'justify-start' : 'justify-center';
+
+  const markMinW = compact ? MARK_MIN_W.compact : MARK_MIN_W.full;
+  /** Balanced X/Y scale so the mark isn’t visibly flattened; taller clip box carries extra height. */
+  const markImgZoom = compact
+    ? 'origin-[50%_0%] scale-x-[1.1] scale-y-[1.08]'
+    : 'origin-[50%_0%] scale-x-[1.22] scale-y-[1.18]';
+
   const mark = (
-    <img
-      src={MARK_SRC}
-      alt=""
-      aria-hidden
-      draggable={false}
-      decoding="async"
-      className="h-9 w-11 shrink-0 object-cover object-center sm:h-10 sm:w-12"
-    />
+    <span
+      className={`relative z-0 block w-full shrink-0 overflow-hidden ${MARK_ASPECT} ${markMinW}`}
+    >
+      <img
+        src={MARK_SRC}
+        alt=""
+        aria-hidden
+        draggable={false}
+        decoding="async"
+        className={`absolute inset-0 h-full w-full max-w-none object-cover object-top ${markImgZoom}`}
+      />
+    </span>
   );
 
   if (iconOnly) {
@@ -52,26 +93,27 @@ export default function Logo({
     );
   }
 
+  const outerGap = compact ? 'gap-0.5' : 'gap-1 sm:gap-1.5';
+  const wordGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
+  const cynapseText = compact
+    ? `text-[10px] font-extrabold tracking-wide sm:text-[11px] ${cynapseCls}`
+    : `text-xs font-extrabold tracking-wide sm:text-sm ${cynapseCls}`;
+  const enterpriseText = compact
+    ? `text-[8px] font-semibold tracking-[0.14em] sm:text-[9px] ${enterpriseCls}`
+    : `text-[10px] font-semibold tracking-[0.1em] sm:text-[11px] ${enterpriseCls}`;
+
   return (
     <span
-      className={`inline-flex flex-col items-center gap-1 ${className}`}
+      className={`inline-flex !w-max max-w-full shrink-0 flex-col items-stretch ${outerGap} ${className}`}
       role="img"
       aria-label={lockupAriaLabel}
     >
       {mark}
-      <span className="flex flex-col items-center gap-0 font-sans leading-tight">
-        <span
-          className={`text-center text-[11px] font-extrabold tracking-wide sm:text-xs ${cynapseCls}`}
-        >
-          CYNAPSE
-        </span>
-        {enterprise && (
-          <span
-            className={`text-center text-[9px] font-semibold tracking-[0.18em] sm:text-[10px] ${enterpriseCls}`}
-          >
-            ENTERPRISE
-          </span>
-        )}
+      <span
+        className={`relative z-10 flex w-full shrink-0 flex-row flex-nowrap items-baseline whitespace-nowrap font-sans leading-none ${wordGap} ${wordRowJustify}`}
+      >
+        <span className={`${cynapseText} leading-none`}>CYNAPSE</span>
+        {enterprise && <span className={`${enterpriseText} leading-none`}>ENTERPRISE</span>}
       </span>
     </span>
   );

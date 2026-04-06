@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lightbulb, BarChart3, Gavel, CheckCircle2 } from "lucide-react";
-import Logo from "../../components/ui/Logo";
+import Logo, { LOGO_CLASS } from "../../components/ui/Logo";
 
 const WORKFLOW_STEPS = [
   {
@@ -41,7 +41,7 @@ export default function Governance() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#042417]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link to="/" className="flex shrink-0 items-center hover:opacity-90" aria-label="Cynapse home">
-            <Logo className="h-auto w-auto text-emerald-500" variant="dark" />
+            <Logo className={LOGO_CLASS.marketing} variant="dark" />
           </Link>
           <Link
             to="/"

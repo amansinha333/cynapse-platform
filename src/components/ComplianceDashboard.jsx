@@ -11,7 +11,7 @@ import {
   ArrowUpRight,
   Sparkles
 } from 'lucide-react';
-import Logo from './ui/Logo';
+import Logo, { LOGO_CLASS } from './ui/Logo';
 
 /* ── 3D Tilt Card component ── */
 function TiltCard({ children, className = '', glowColor = 'rgba(99, 102, 241, 0.15)' }) {
@@ -85,7 +85,7 @@ const ComplianceDashboard = () => {
             <Sparkles size={10} className="text-indigo-500" /> Project Monitor
           </p>
           <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-3xl font-extrabold tracking-tight font-['Manrope',_sans-serif]">
-            <Logo className="h-auto w-auto shrink-0" />
+            <Logo className={LOGO_CLASS.marketing} />
             <span className="text-slate-300 font-light">|</span>
             <span className="text-slate-600 dark:text-slate-300">Sovereign Architect</span>
           </h1>

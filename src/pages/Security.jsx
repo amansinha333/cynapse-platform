@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   ArrowRight,
 } from "lucide-react";
-import Logo from "../components/ui/Logo";
+import Logo, { LOGO_CLASS } from "../components/ui/Logo";
 
 const pillars = [
   {
@@ -45,7 +45,7 @@ export default function Security() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#042417]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link to="/" className="flex shrink-0 items-center hover:opacity-90" aria-label="Cynapse home">
-            <Logo className="h-auto w-auto text-emerald-500" variant="dark" />
+            <Logo className={LOGO_CLASS.marketing} variant="dark" />
           </Link>
           <div className="flex items-center gap-6">
             <Link

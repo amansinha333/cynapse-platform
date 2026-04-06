@@ -7,7 +7,7 @@ import { pageTransition } from './utils/motion';
 
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import Sidebar from './components/Sidebar';
-import Logo from './components/ui/Logo';
+import Logo, { LOGO_CLASS } from './components/ui/Logo';
 import NotificationCenter from './components/NotificationCenter';
 import ProfileMenu from './components/ProfileMenu';
 import AuthView from './components/AuthView';
@@ -132,8 +132,8 @@ function AppLayout() {
               >
                 <Menu size={20} />
               </button>
-              <Logo className="h-auto max-h-[3.75rem] w-auto shrink-0 py-0.5 lg:hidden" />
-              <Logo iconOnly className="hidden h-8 w-8 shrink-0 lg:inline-flex" />
+              <Logo compact className={`${LOGO_CLASS.appMobileCompact} lg:hidden`} />
+              <Logo iconOnly className={LOGO_CLASS.iconOnlyDesktopChip} />
               <p className="min-w-0 truncate text-sm font-semibold text-slate-800 sm:text-base" aria-live="polite">
                 {pageTitle}
               </p>

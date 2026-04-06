@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import Logo from './ui/Logo';
+import Logo, { LOGO_CLASS } from './ui/Logo';
 import { ENTERPRISE_ROLES } from '../config/constants';
 import { useProject } from '../context/ProjectContext';
 import { loginUser, registerUser, setAuthToken, setRefreshToken, API_BASE } from '../utils/api';
@@ -94,7 +94,7 @@ export default function AuthView() {
         </div>
         <div className="mb-4 flex justify-center">
           <Link to="/" className="inline-flex" aria-label="Cynapse home">
-            <Logo className="h-auto max-h-32 w-auto text-emerald-500" />
+            <Logo className={LOGO_CLASS.marketing} />
           </Link>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">Sign in to Cynapse Enterprise</h2>

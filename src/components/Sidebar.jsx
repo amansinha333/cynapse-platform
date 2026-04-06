@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { springs, easings } from '../utils/motion';
-import Logo from './ui/Logo';
+import Logo, { LOGO_CLASS } from './ui/Logo';
 
 const CRM_NAV_ITEMS = [
   { to: '/dashboard/clients', label: 'Clients', icon: Users },
@@ -199,7 +199,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
                 transition={{ duration: 0.2, ease: easings.outExpo }}
                 className="flex w-full min-h-8 items-center justify-center overflow-visible"
               >
-                <Logo className="h-auto w-full max-w-[11rem] py-0.5" />
+                <Logo className={LOGO_CLASS.sidebarExpanded} />
               </motion.div>
             ) : (
               <motion.div
@@ -210,7 +210,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
                 transition={{ duration: 0.2, ease: easings.outExpo }}
                 className="flex shrink-0 items-center justify-center"
               >
-                <Logo className="h-10 w-10" iconOnly />
+                <Logo className={LOGO_CLASS.iconOnlySidebar} iconOnly />
               </motion.div>
             )}
           </AnimatePresence>

@@ -8,7 +8,7 @@ const MARK_SRC = '/cynapse-logo.png?v=2';
  * Do not pass `w-auto` here — the component uses `!w-max` for correct wordmark width.
  */
 export const LOGO_CLASS = {
-  marketing: 'h-auto shrink-0 text-emerald-500',
+  marketing: 'h-auto max-h-[40px] shrink-0 text-emerald-500',
   neutral: 'h-auto shrink-0',
   trust: 'relative z-10 h-auto shrink-0 text-emerald-500',
   sidebarExpanded: 'h-auto shrink-0 max-w-[14rem] py-0.5',

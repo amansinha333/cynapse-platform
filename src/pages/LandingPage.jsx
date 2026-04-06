@@ -120,11 +120,15 @@ export default function LandingPage() {
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] px-6 py-2.5 min-h-[72px] flex items-center justify-between max-w-[1300px] mx-auto pointer-events-auto border border-slate-100"
+          className="bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] px-6 py-1.5 h-[64px] flex items-center justify-between max-w-[1300px] mx-auto pointer-events-auto border border-slate-100"
         >
           <div className="flex items-center gap-10">
-            <a href="/" className="flex items-center shrink-0" aria-label="Cynapse home">
-              <Logo className={LOGO_CLASS.marketing} />
+            <a href="/" className="flex flex-col items-center shrink-0 py-0.5" aria-label="Cynapse home">
+              <img src="/cynapse-logo.png?v=2" alt="" aria-hidden draggable={false} decoding="async" className="h-[40px] w-auto object-contain object-top" />
+              <span className="flex items-baseline justify-center gap-[2px] whitespace-nowrap leading-none font-sans -mt-[1px]">
+                <span className="text-[7px] font-extrabold tracking-[0.04em] text-emerald-900">CYNAPSE</span>
+                <span className="text-[5.5px] font-semibold tracking-[0.1em] text-slate-500">ENTERPRISE</span>
+              </span>
             </a>
 
             <div className="hidden md:flex items-center gap-2 lg:gap-4 text-[13px] lg:text-[14px] font-semibold text-[#042f1f]">

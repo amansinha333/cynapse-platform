@@ -118,6 +118,16 @@ The routing architecture implements a deliberate separation between the **market
 
 Legacy routes (e.g., `/board`, `/compliance`) are preserved as `<Navigate>` redirects to `/dashboard/*` for backward compatibility.
 
+**CRM hub & workspace messaging routes (post-audit additions):**
+
+| Path | Component | Purpose |
+|---|---|---|
+| `/dashboard/clients` | `src/pages/dashboard/Clients.jsx` | Client / stakeholder registry backed by `Vendor` model + CRM API; card grid UI, “Add new” creates vendors via `POST /api/crm/clients` |
+| `/dashboard/inbox` | `src/pages/dashboard/Inbox.jsx` | Workspace-scoped direct messaging (DM) between users sharing the same `workspace_id`; loads threads via messaging API + optional live updates over existing `/ws/dashboard` WebSocket |
+| `/dashboard/overview`, `/dashboard/projects` | `<Navigate to="/dashboard/clients" />` | Legacy paths retained as redirects so old bookmarks do not 404 |
+
+**Authenticated shell header (current):** `AppLayout` uses a **single top row** (`h-16`, white background, `border-slate-100`): primary **Cynapse / Enterprise branding appears only in the left sidebar**, not duplicated in the header. The header shows a **route-derived page title** (e.g. “Clients”, “Initiatives · List”), **search**, **notifications**, **+ New**, and **profile** — without a separate CRM pill strip in the top bar (CRM navigation remains in the sidebar under **CRM hub**). Main scrollable content uses a soft shell background (`bg-[#F8F9FD]`) so white cards remain visually crisp.
+
 The `AppLayout` component acts as a route guard: if `currentUser` is `null` (no authenticated session), it renders `<AuthView />` instead of the dashboard, implementing client-side authentication gating.
 
 #### 2.1.3 State Management: React Context API
@@ -211,7 +221,11 @@ The backend exposes the following route groups:
 | `routers/audit.py` | `/api/audit` | `/node1`, `/node2` | Yes |
 | `routers/billing.py` | `/api/billing` | `/create-checkout-session`, `/webhook` | Yes (except webhook) |
 | `routers/vault.py` | `/api/vault` | `/upload`, `/documents`, `/documents/{id}/url`, `/documents/{id}/download`, `/{id}` (DELETE) | Yes |
+| `routers/crm.py` | `/api/crm` | `/stats`, `/clients` (GET list + POST create), `/projects`, `/inbox`, `/inbox/{id}/read` (PATCH) | Yes |
+| `routers/messages.py` | `/api` | `/workspace/members`, `/conversations`, `/conversations/dm` (POST), `/conversations/{id}/messages` (GET/POST) | Yes |
 | `main.py` (legacy v1) | `/api/v1` | `/audit/node1`, `/audit/node2`, `/analyze-rice` | Yes |
+
+> **Note:** `backend/routers/invites.py` (team/workspace invites) may be present in the repository as an additional router included from `main.py` when enabled; it is documented in deployment notes rather than duplicated in every revision of this table.
 
 ### 2.3 Database & Persistence Layer
 
@@ -257,6 +271,20 @@ The ORM models are defined in `backend/models.py` using SQLAlchemy's declarative
 - `filename`, `s3_key`, `uploaded_by` (ForeignKey → `users.id`), `workspace_id`
 
 **Additional Tables:** `epics`, `vendors`, `audit_events`, `billing_webhook_events`.
+
+**Vendor extensions (CRM “clients”):** Beyond the original `name`, `type`, `status`, `risk` fields, the `vendors` table may include optional CRM-oriented columns — `role_title`, `contact_email`, `avatar_url`, `budget`, `project_count` — populated via `POST /api/crm/clients` or `POST /api/vendors` when the backend schema supports them. `database.py` applies additive `ALTER TABLE` migrations for SQLite and PostgreSQL so existing deployments can upgrade without data loss.
+
+**Workspace direct messaging:** Three additional tables model same-organization chat:
+
+| Table | Role |
+|---|---|
+| `conversations` | Workspace-scoped thread; `kind` (e.g. `dm`); `dm_key` unique string for stable pairing of two users in one workspace |
+| `conversation_members` | Composite key (`conversation_id`, `user_id`); optional `last_read_at` |
+| `chat_messages` | `conversation_id`, `sender_id`, `body`, `created_at` |
+
+New messages update conversation `updated_at`; recipients can receive a **WebSocket** push (`type: chat_message`) via `backend/utils/websockets.py` (`dashboard_manager.send_to_user`) on the existing authenticated `/ws/dashboard` connection.
+
+> **Deployment note:** Production may use **PostgreSQL** (`DATABASE_URL` with `postgresql+asyncpg`) instead of SQLite; the ORM and additive migrations are compatible with both when `DATABASE_URL` is set accordingly.
 
 #### 2.3.3 Migration Strategy: Ephemeral-to-Persistent Transition
 
@@ -918,6 +946,18 @@ Cards use a 3D tilt hover effect via `framer-motion` (`useMotionValue`, `useSpri
 
 The **API Keys** tab allows users to input and securely store (via Fernet encryption) their Gemini, Pinecone, and SerpAPI keys. These keys are used as fallbacks when environment-level keys are not configured.
 
+### 10.6 CRM Hub UI, Workspace Messaging & API Integration
+
+**Sidebar (“CRM hub”):** The left navigation includes a dedicated subsection for **Clients** and **Inbox** (legacy entries for Overview/Projects were removed from the product surface; routes may still redirect). This keeps CRM navigation available without duplicating it as a second row in the top header.
+
+**Clients page:** Renders vendor-backed data from `GET /api/crm/clients`. The UI supports creating records through `POST /api/crm/clients` with fields mapped to the extended `Vendor` model (company/vertical → `type`, plus optional role, email, avatar URL, budget, project count). Empty or error states are handled in-component; avatars fall back to generated initials when no URL is stored.
+
+**Inbox page:** Implements a two-pane messenger: **conversation list** (previews from last message) and **active thread**. Teammates are loaded from `GET /api/workspace/members` (same `workspace_id` as the current user). Starting a DM calls `POST /api/conversations/dm` with `{ recipient_id }`, which get-or-creates a two-party conversation. Messages are loaded with `GET /api/conversations/{id}/messages` and sent with `POST`. The UI may poll periodically and listen for `cynapse-chat-message` **CustomEvent** dispatched from `src/hooks/useWebSocket.js` when the server pushes `type: chat_message`, so recipients see updates without full page reload when the dashboard WebSocket is connected.
+
+**API client (`src/utils/api.js`):** Exposes `fetchClients`, `createClient`, `fetchCRMStats`, `fetchProjects`, `fetchInbox`, `markNotificationRead`, `fetchWorkspaceMembers`, `fetchConversations`, `openOrCreateDM`, `fetchConversationMessages`, `postChatMessage`. The shared `request()` helper dispatches `AUTH_LOGOUT_EVENT` on irrecoverable **401** after token refresh failure to avoid infinite retry loops (handled in `ProjectContext.jsx`).
+
+**Marketing / analytics guardrails:** `src/main.jsx` may initialize PostHog only when `VITE_POSTHOG_KEY` is present. `src/components/ui/BrandedLoader.jsx` on the landing experience uses completion deduplication and a timer fallback so `onComplete` always runs. These concerns are orthogonal to the governance engine but affect production UX reliability.
+
 ---
 
 ## 11. Technical Tooling Inventory
@@ -1013,6 +1053,16 @@ export const runNode1 = async (payload, keys = {}) => {
 };
 ```
 
+#### 12.1.4 CRM Hub, Workspace Direct Messaging & Dashboard Shell Refinement
+
+**CRM API surface:** A dedicated `routers/crm.py` module aggregates **stats**, **clients** (vendors with CRM field projections), **projects** (epics with feature counts / RICE aggregates), and an **inbox** view derived from audit-style notifications with per-user read state (implementation may use ephemeral in-memory sets for read tracking in single-node deployments).
+
+**Workspace messaging:** `routers/messages.py` implements **DM-only** conversations keyed by workspace + participant pair, persistent `chat_messages` rows, and **real-time notification** to the peer user via the existing `ConnectionManager` WebSocket infrastructure.
+
+**Frontend shell:** The dashboard header was iteratively **consolidated** to a single row: **no duplicate “Cynapse Enterprise” wordmark in the top bar** (brand remains in the sidebar), **no separate CRM pill row** in the header, and a **dynamic page title** instead of a “Dashboard / …” breadcrumb prefix. Initiative search, notifications, feature creation, and profile remain accessible from the header; export/RICE/dark-mode controls may be relocated to other surfaces in line with de-cluttering.
+
+**Development scripts:** `package.json` `dev` script may use `concurrently` without `--kill-others-on-fail` and without `--strictPort` on Vite to reduce friction when one process fails or the dev port is occupied; `dev:web` runs the frontend alone.
+
 ### 12.2 Deployment Evolution
 
 1. **Phase 1:** Local development only (localhost:5173 + localhost:8000).
@@ -1044,7 +1094,7 @@ cynapse-platform/
 ├── backend/
 │   ├── main.py                     # FastAPI application entry point
 │   ├── database.py                 # SQLAlchemy async engine + migrations
-│   ├── models.py                   # ORM models (9 tables)
+│   ├── models.py                   # ORM models (core + vendors/epics/… + messaging tables; see §2.3.2)
 │   ├── auth.py                     # JWT + bcrypt authentication
 │   ├── requirements.txt            # Python dependencies (20 packages)
 │   ├── render.yaml                 # Render deployment configuration
@@ -1054,21 +1104,25 @@ cynapse-platform/
 │   │   ├── auth.py                 # Auth routes (register, login, OAuth, refresh)
 │   │   ├── audit.py                # Node 1 + Node 2 audit routes (v2)
 │   │   ├── billing.py              # Stripe checkout + webhook routes
-│   │   └── vault.py                # Document upload + vectorization routes
+│   │   ├── vault.py                # Document upload + vectorization routes
+│   │   ├── crm.py                  # CRM hub: stats, clients/vendors, projects/epics, audit-derived inbox
+│   │   ├── messages.py             # Workspace members, DM conversations, chat messages + WS notify
+│   │   └── invites.py              # Team/workspace invites (when enabled)
 │   │
 │   ├── services/
 │   │   └── ai_service.py           # Gemini client, system prompts, RICE/Node logic
 │   │
 │   ├── utils/
 │   │   ├── encryption.py           # Fernet encryption for API keys
+│   │   ├── websockets.py           # WebSocket ConnectionManager; dashboard + chat push to user
 │   │   └── s3_storage.py           # AWS S3 manager (staged)
 │   │
 │   └── migrations/
 │       └── 20260324_phase2_commercial_saas.sql
 │
 └── src/
-    ├── App.jsx                     # Root component + routing
-    ├── main.jsx                    # React entry point
+    ├── App.jsx                     # Root component + routing; AppLayout = single-row header + shell
+    ├── main.jsx                    # React entry point (optional PostHog when VITE_POSTHOG_KEY set)
     ├── index.css                   # Global styles, glassmorphism, animations
     │
     ├── components/
@@ -1093,7 +1147,12 @@ cynapse-platform/
     │   ├── Badges.jsx              # Status/priority badges
     │   ├── ProfileView.jsx         # Profile display
     │   ├── PlaceholderView.jsx     # Empty state placeholder
-    │   └── SubscriptionCard.jsx    # Billing plan card
+    │   ├── SubscriptionCard.jsx    # Billing plan card
+    │   └── ui/
+    │       └── BrandedLoader.jsx    # Landing loader; onComplete dedupe + fallback timers
+    │
+    ├── hooks/
+    │   └── useWebSocket.js         # Dashboard WS; dispatches chat_message events for Inbox
     │
     ├── pages/
     │   ├── LandingPage.jsx         # Marketing landing page
@@ -1103,7 +1162,10 @@ cynapse-platform/
     │   ├── FrameworkDetailPage.jsx # Framework detail view
     │   ├── SpacesPage.jsx          # Workspace spaces manager
     │   ├── ProfilePage.jsx         # User profile page
-    │   └── VaultPage.jsx           # Knowledge Vault page
+    │   ├── VaultPage.jsx           # Knowledge Vault page
+    │   └── dashboard/
+    │       ├── Clients.jsx         # CRM clients (vendors) grid + create modal
+    │       └── Inbox.jsx           # Workspace DM inbox (two-pane UI)
     │
     ├── context/
     │   └── ProjectContext.jsx      # Global state provider
@@ -1112,7 +1174,7 @@ cynapse-platform/
     │   └── constants.js            # Regions, industries, regulations, gated columns
     │
     └── utils/
-        ├── api.js                  # HTTP client + auth + API wrappers
+        ├── api.js                  # HTTP client + auth + CRM/messaging + API wrappers
         └── pdf.js                  # Browser-side PDF.js text extraction
 ```
 
@@ -1144,8 +1206,19 @@ cynapse-platform/
 | POST | `/api/v1/analyze-rice` | Yes | AI RICE scoring |
 | GET | `/api/users/me` | Yes | Current user profile |
 | PUT | `/api/users/me` | Yes | Update profile (multipart) |
-| GET | `/api/users` | Yes | List all users |
+| GET | `/api/users` | Yes | List users (workspace-scoped when `workspace_id` is set) |
 | PUT | `/api/users/:id/role` | Admin | Change user role |
+| GET | `/api/crm/stats` | Yes | CRM aggregate stats (initiatives, vendors, completion, etc.) |
+| GET | `/api/crm/clients` | Yes | List clients (vendor projection) |
+| POST | `/api/crm/clients` | Yes | Create client / vendor with CRM fields |
+| GET | `/api/crm/projects` | Yes | List projects (epics + aggregates) |
+| GET | `/api/crm/inbox` | Yes | Audit-derived inbox items |
+| PATCH | `/api/crm/inbox/:id/read` | Yes | Mark inbox item read (per-user state may be ephemeral) |
+| GET | `/api/workspace/members` | Yes | Teammates sharing current user’s workspace |
+| GET | `/api/conversations` | Yes | List DM conversations for current user |
+| POST | `/api/conversations/dm` | Yes | Open or create DM `{ recipient_id }` |
+| GET | `/api/conversations/:id/messages` | Yes | List messages in a conversation |
+| POST | `/api/conversations/:id/messages` | Yes | Send chat message `{ body }` |
 | GET | `/api/settings/keys/:name` | Yes | Get encrypted setting |
 | PUT | `/api/settings/keys/:name` | Yes | Upsert encrypted setting |
 | POST | `/api/billing/create-checkout-session` | Yes | Stripe checkout |
@@ -1176,6 +1249,9 @@ cynapse-platform/
 | `STRIPE_WEBHOOK_SECRET` | Backend | No | Stripe webhook signing secret |
 | `VITE_API_BASE_URL` | Frontend | Yes | Backend API base URL |
 | `VITE_GOOGLE_CLIENT_ID` | Frontend | No | Google Client ID (frontend) |
+| `VITE_POSTHOG_KEY` | Frontend | No | PostHog project key; analytics skipped if unset |
+| `VITE_POSTHOG_HOST` | Frontend | No | PostHog API host (optional override) |
+| `VITE_WS_URL` | Frontend | No | Explicit WebSocket URL for dashboard socket (optional; derived from API base when unset) |
 
 ---
 

@@ -6,7 +6,7 @@ This file is a concise map of **what remains** in the cleaned project and where 
 
 ## Repo root
 
-- `package.json`: Vite/React build + dev scripts.
+- `package.json`: Vite/React build + dev scripts (`npm run dev:web` = frontend only; `npm run dev` may run API + Vite via `concurrently` without `--kill-others-on-fail` / strict port lock — see script for current flags).
 - `vite.config.js`: Vite configuration.
 - `vercel.json`: SPA rewrite config for Vercel.
 - `.env.example`: Safe env template (no secrets).
@@ -33,6 +33,8 @@ This file is a concise map of **what remains** in the cleaned project and where 
 #### App shell (nested)
 All dashboard routes live under `/dashboard/*` and render inside the authenticated app shell (`AppLayout`).
 
+**Shell layout:** `AppLayout` uses a **single-row** top header (page title, search, notifications, + New, profile) and a main area with soft background `bg-[#F8F9FD]`. **Product branding stays in the sidebar** (not duplicated in the header). **CRM** entry points (**Clients**, **Inbox**) live in the **sidebar** under **CRM hub**, not as a second pill row in the top bar.
+
 - `/dashboard/list` → `src/components/ListView.jsx`
 - `/dashboard/board` → `src/components/BoardView.jsx`
 - `/dashboard/timeline` → `src/components/TimelineView.jsx`
@@ -50,13 +52,19 @@ All dashboard routes live under `/dashboard/*` and render inside the authenticat
 - `/dashboard/vault` → `src/pages/VaultPage.jsx` (Knowledge Vault)
 - `/dashboard/profile` → `src/pages/ProfilePage.jsx`
 - `/dashboard/auditlog` → `src/components/AuditLogView.jsx`
+- `/dashboard/system-health` → `src/pages/SystemHealthPage.jsx`
+- `/dashboard/billing` → `src/pages/BillingPage.jsx`
+- `/dashboard/clients` → `src/pages/dashboard/Clients.jsx` (CRM / vendors)
+- `/dashboard/inbox` → `src/pages/dashboard/Inbox.jsx` (workspace DMs)
+- `/dashboard/overview` → redirect to `/dashboard/clients` (legacy)
+- `/dashboard/projects` → redirect to `/dashboard/clients` (legacy)
 
 #### Auth gate
 If `currentUser` is missing, the dashboard shell renders:
 - `src/components/AuthView.jsx`
 
 ### Navigation / Shell UI
-- `src/components/Sidebar.jsx`: Sidebar nav (includes **Knowledge Vault** link).
+- `src/components/Sidebar.jsx`: Sidebar nav (includes **Knowledge Vault** and **CRM hub** — **Clients**, **Inbox**).
 - `src/components/ProfileMenu.jsx`: Avatar dropdown (routes into `/dashboard/...`).
 - `src/components/NotificationCenter.jsx`: Notification UI.
 
@@ -69,20 +77,28 @@ If `currentUser` is missing, the dashboard shell renders:
 ### API client
 - `src/utils/api.js`: Frontend API layer.
   - Reads `VITE_API_BASE_URL` (build-time; in Vercel you must redeploy after changes).
-  - Exposes auth/user CRUD, vault endpoints, audit endpoints, and secure settings helpers.
+  - Exposes auth/user CRUD, vault endpoints, audit endpoints, secure settings helpers, **CRM** (`/api/crm/*`), and **workspace messaging** (`/api/workspace/members`, `/api/conversations/*`).
+  - On **401** after refresh failure, clears tokens and dispatches `AUTH_LOGOUT_EVENT` (see `ProjectContext.jsx`) to avoid infinite API loops.
+
+### Realtime
+- `src/hooks/useWebSocket.js`: Connects to `/ws/dashboard` when a JWT exists; forwards server `chat_message` events as `cynapse-chat-message` for the Inbox UI.
+
+### Landing / analytics (optional)
+- `src/components/ui/BrandedLoader.jsx`: Full-screen branded loader used by the marketing page; completion handler is deduped with timer fallback.
+- `src/main.jsx`: PostHog init only when `VITE_POSTHOG_KEY` is set (try/catch).
 
 ---
 
 ## Backend (FastAPI) — `backend/`
 
 ### Entry
-- `backend/main.py`: FastAPI app, DB init + seed, CORS, and **secure settings endpoints**.
+- `backend/main.py`: FastAPI app, DB init + seed, CORS, WebSocket `/ws/dashboard`, and **secure settings endpoints**; includes routers (`crm`, `messages`, `billing`, `vault`, `audit`, `auth`, `invites` as wired).
 - `backend/requirements.txt`: Python dependencies (Render uses this).
 - `backend/render.yaml`: Render deployment config for backend.
 
 ### Database / Models
-- `backend/database.py`: SQLAlchemy async engine + `init_db()` migrations.
-- `backend/models.py`: ORM models (Users, Workspaces, SecureSetting, ComplianceDocument, etc.).
+- `backend/database.py`: SQLAlchemy async engine + `init_db()` migrations (SQLite `PRAGMA` + PostgreSQL `ADD COLUMN IF NOT EXISTS` for extended **vendor** columns).
+- `backend/models.py`: ORM models (Users, Workspaces, Features, Epics, Vendors with optional CRM fields, ComplianceDocument, **Conversation**, **ConversationMember**, **ChatMessage**, etc.).
 
 ### Auth + Security
 - `backend/auth.py`: JWT + password hashing/verification.
@@ -101,10 +117,17 @@ If `currentUser` is missing, the dashboard shell renders:
   - Upload validates PDFs, extracts text, embeds (REST), and upserts to Pinecone (if configured).
 - `backend/routers/billing.py`
   - Stripe checkout + webhook/idempotency helpers (requires Stripe env vars).
+- `backend/routers/crm.py`
+  - `/api/crm/stats`, `/api/crm/clients` (GET/POST), `/api/crm/projects`, `/api/crm/inbox`, PATCH read markers.
+- `backend/routers/messages.py`
+  - `/api/workspace/members`, `/api/conversations`, `/api/conversations/dm`, `/api/conversations/:id/messages` — workspace **DM** threads; notifies peer via `utils/websockets.py`.
+- `backend/routers/invites.py` (when included)
+  - Workspace/team invite flows (depends on product configuration).
 
 ### Services / Utilities
 - `backend/services/ai_service.py`: Internal AI helper logic used by some endpoints.
 - `backend/utils/s3_storage.py`: S3 helpers (only used if S3 vault is configured).
+- `backend/utils/websockets.py`: `ConnectionManager` for `/ws/dashboard` (ping/pong, `send_to_user` for chat push).
 
 ---
 
@@ -140,6 +163,8 @@ Frontend helpers in `src/utils/api.js`:
 ### Frontend (Vercel)
 - `VITE_API_BASE_URL`: Base URL of backend (e.g. `https://cynapse-api.onrender.com`)
   - **Requires redeploy** on Vercel after change (Vite build-time env).
+- `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST`: Optional PostHog analytics (skipped if key unset).
+- `VITE_WS_URL`: Optional explicit WebSocket URL for the dashboard socket (otherwise derived from API base).
 
 ### Backend (Render)
 - Required core:
@@ -162,5 +187,18 @@ Frontend helpers in `src/utils/api.js`:
 ## Deployment notes (current recommended)
 
 - **Frontend**: Vercel (Vite build output `dist/`, SPA rewrite in `vercel.json`).
-- **Backend**: Render (FastAPI + SQLite). Serverless platforms typically break SQLite persistence.
+- **Backend**: Render (FastAPI). Database is typically **PostgreSQL** in production (`DATABASE_URL`); SQLite/aiosqlite may be used for local or test (`UNIT_TESTING=1`). Serverless-only hosts are a poor fit for SQLite file persistence.
+
+---
+
+## CRM hub & workspace messaging (quick map)
+
+| Layer | Location |
+|---|---|
+| UI — Clients | `src/pages/dashboard/Clients.jsx` |
+| UI — Inbox (DM) | `src/pages/dashboard/Inbox.jsx` |
+| API | `src/utils/api.js` (`fetchClients`, `createClient`, `fetchConversations`, `postChatMessage`, …) |
+| Backend CRM | `backend/routers/crm.py` |
+| Backend chat | `backend/routers/messages.py` + `backend/utils/websockets.py` |
+| Models | `backend/models.py` (`Vendor` extensions; `Conversation`, `ConversationMember`, `ChatMessage`) |
 

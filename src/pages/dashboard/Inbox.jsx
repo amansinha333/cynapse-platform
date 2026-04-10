@@ -72,22 +72,30 @@ export default function Inbox() {
     loadAll();
   }, [loadAll]);
 
+  const activeIdRef = React.useRef(activeId);
+  React.useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
   const loadMessages = React.useCallback(async (convId, isBackground = false) => {
     if (!convId) return;
     if (!isBackground) setLoadingMsg(true);
     try {
       const rows = await fetchConversationMessages(convId);
-      setMessages(Array.isArray(rows) ? rows : []);
+      if (activeIdRef.current === convId) {
+        setMessages(Array.isArray(rows) ? rows : []);
+      }
     } catch (e) {
-      setErr(e?.message || 'Failed to load thread');
+      if (activeIdRef.current === convId) setErr(e?.message || 'Failed to load thread');
     } finally {
-      if (!isBackground) setLoadingMsg(false);
+      if (!isBackground && activeIdRef.current === convId) {
+        setLoadingMsg(false);
+      }
     }
   }, []);
 
   React.useEffect(() => {
     if (activeId) {
-      setMessages([]);
       loadMessages(activeId, false);
     }
   }, [activeId, loadMessages]);

@@ -72,26 +72,29 @@ export default function Inbox() {
     loadAll();
   }, [loadAll]);
 
-  const loadMessages = React.useCallback(async (convId) => {
+  const loadMessages = React.useCallback(async (convId, isBackground = false) => {
     if (!convId) return;
-    setLoadingMsg(true);
+    if (!isBackground) setLoadingMsg(true);
     try {
       const rows = await fetchConversationMessages(convId);
       setMessages(Array.isArray(rows) ? rows : []);
     } catch (e) {
       setErr(e?.message || 'Failed to load thread');
     } finally {
-      setLoadingMsg(false);
+      if (!isBackground) setLoadingMsg(false);
     }
   }, []);
 
   React.useEffect(() => {
-    if (activeId) loadMessages(activeId);
+    if (activeId) {
+      setMessages([]);
+      loadMessages(activeId, false);
+    }
   }, [activeId, loadMessages]);
 
   React.useEffect(() => {
     if (!activeId) return undefined;
-    const id = setInterval(() => loadMessages(activeId), 6000);
+    const id = setInterval(() => loadMessages(activeId, true), 3000);
     return () => clearInterval(id);
   }, [activeId, loadMessages]);
 
@@ -115,7 +118,7 @@ export default function Inbox() {
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeId]);
+  }, [messages.length, activeId]);
 
   const activeConv = conversations.find((c) => c.id === activeId);
   const other = activeConv?.other_user;

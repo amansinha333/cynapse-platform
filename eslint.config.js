@@ -14,6 +14,7 @@ export default defineConfig([
     '**/gemini/**',
     '**/~/**',
     'scripts/k6-*.js',
+    'middleware.js',
   ]),
   {
     files: ['**/*.{js,jsx}'],

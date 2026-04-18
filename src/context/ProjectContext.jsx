@@ -148,7 +148,21 @@ export function ProjectProvider({ children }) {
   }, [currentUser]);
 
   useEffect(() => {
+    // OAuth callback stores JWT in this effect's tick; skip hydration here so we don't fire an
+    // unauthenticated /api/users/me (401) that races OAuthCallback and clears the new token.
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname || '';
+      if (p === '/oauth-callback' || p.endsWith('/oauth-callback')) return;
+    }
+
+    const hadJwt =
+      typeof localStorage !== 'undefined' && !!localStorage.getItem('cynapse_jwt_token');
+
     const hydrateUser = async () => {
+      if (!hadJwt) {
+        setCurrentUser(null);
+        return;
+      }
       try {
         const me = await fetchCurrentUser();
         setCurrentUser({
@@ -163,7 +177,6 @@ export function ProjectProvider({ children }) {
           subscriptionStatus: me.subscription_status || 'active'
         });
       } catch {
-        // Stale local user without valid JWT should be logged out explicitly.
         setAuthToken(null);
         setRefreshToken(null);
         setCurrentUser(null);

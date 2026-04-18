@@ -82,9 +82,10 @@ export default function BrandedLoader({ onComplete }) {
               alignItems: "flex-start",
               zIndex: 10,
               maxWidth: "min(92vw, 14rem)",
+              isolation: "isolate",
             }}
           >
-            <Logo variant="dark" align="start" className={LOGO_CLASS.loader} />
+            <Logo variant="dark" align="start" blendDarkBg className={LOGO_CLASS.loader} />
           </div>
 
           {/* Animated vertical bars top-right (like reference) */}

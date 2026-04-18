@@ -108,7 +108,7 @@ function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskC
               <motion.div
                 layoutId="hoverNavBg"
                 className="absolute inset-0 rounded-xl"
-                style={{ background: 'rgba(248, 250, 252, 0.8)' }}
+                style={{ background: 'rgba(241, 245, 249, 0.95)' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -169,22 +169,27 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
       transition={{ duration: 0.3, ease: easings.outExpo }}
       className="glass shrink-0 hidden lg:flex flex-col relative z-30 overflow-hidden"
       style={{
-        background: 'rgba(255,255,255,0.8)',
-        backdropFilter: 'blur(24px) saturate(180%)',
-        borderRight: '1px solid rgba(226, 232, 240, 0.6)',
+        background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        borderRight: '1px solid #e2e8f0',
       }}
     >
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: `
-          radial-gradient(ellipse at 30% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
-          radial-gradient(ellipse at 70% 100%, rgba(139, 92, 246, 0.05) 0%, transparent 60%)
-        `
-      }} />
+      <div
+        className="absolute inset-0 pointer-events-none opacity-90"
+        style={{
+          background:
+            'radial-gradient(ellipse 120% 80% at 50% 0%, rgba(148, 163, 184, 0.12) 0%, transparent 55%)',
+        }}
+      />
 
-      {/* Brand Header */}
-      <div className={`${sidebarOpen ? 'px-6' : 'px-0 flex justify-center'} py-8 relative z-10 transition-[padding] duration-300`}>
+      {/* Brand Header — centered when expanded */}
+      <div
+        className={`${
+          sidebarOpen ? 'px-3' : 'px-0'
+        } flex w-full justify-center py-8 relative z-10 transition-[padding] duration-300`}
+      >
         <motion.div
-          className="flex min-h-8 items-center"
+          className="flex min-h-8 w-full max-w-full items-center justify-center"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -197,7 +202,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.2, ease: easings.outExpo }}
-                className="flex w-full min-h-8 items-center justify-center overflow-visible"
+                className="flex min-h-8 w-full max-w-full items-center justify-center overflow-visible"
               >
                 <Logo className={LOGO_CLASS.sidebarExpanded} />
               </motion.div>

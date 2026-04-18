@@ -8,7 +8,7 @@ const MARK_SRC = '/cynapse-logo.png?v=2';
  * Do not pass `w-auto` here — the component uses `!w-max` for correct wordmark width.
  */
 export const LOGO_CLASS = {
-  marketing: 'h-auto max-h-[40px] shrink-0 text-emerald-500',
+  marketing: 'h-auto shrink-0 text-emerald-500',
   neutral: 'h-auto shrink-0',
   trust: 'relative z-10 h-auto shrink-0 text-emerald-500',
   sidebarExpanded: 'h-auto shrink-0 max-w-[14rem] py-0.5',
@@ -43,6 +43,8 @@ export default function Logo({
   enterprise = true,
   compact = false,
   align = 'center',
+  /** Knocks out white PNG padding on dark UIs (e.g. branded loader) via multiply blend on the mark only. */
+  blendDarkBg = false,
 }) {
   const dark = variant === 'dark';
 
@@ -70,7 +72,9 @@ export default function Logo({
         aria-hidden
         draggable={false}
         decoding="async"
-        className={`absolute inset-0 h-full w-full max-w-none object-cover object-top ${markImgZoom}`}
+        className={`absolute inset-0 h-full w-full max-w-none object-cover object-top ${markImgZoom}${
+          blendDarkBg ? ' mix-blend-multiply brightness-[1.08]' : ''
+        }`}
       />
     </span>
   );
@@ -93,7 +97,7 @@ export default function Logo({
     );
   }
 
-  const outerGap = compact ? 'gap-0.5' : 'gap-1 sm:gap-1.5';
+  const outerGap = compact ? 'gap-0' : 'gap-0 sm:gap-px';
   const wordGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
   const cynapseText = compact
     ? `text-[10px] font-extrabold tracking-wide sm:text-[11px] ${cynapseCls}`

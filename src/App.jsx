@@ -117,11 +117,11 @@ function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F8F9FD] text-slate-900">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(o => !o)} highRiskCount={highRiskCount} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-40 flex h-16 w-full shrink-0 items-center border-b border-slate-100 bg-white px-4 sm:px-6">
+        <header className="sticky top-0 z-40 flex h-16 w-full shrink-0 items-center border-b border-slate-200/90 bg-slate-50/95 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-slate-50/85 sm:px-6">
           <div className="flex h-full w-full items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <button

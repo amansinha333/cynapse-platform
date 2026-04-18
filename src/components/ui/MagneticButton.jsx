@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 
-const RADIUS = 30;
+const RADIUS = 42;
 
 const MotionLink = motion(Link);
 
@@ -21,8 +21,8 @@ export default function MagneticButton({
   const ref = useRef(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 280, damping: 22 });
-  const springY = useSpring(y, { stiffness: 280, damping: 22 });
+  const springX = useSpring(x, { stiffness: 520, damping: 34, mass: 0.72 });
+  const springY = useSpring(y, { stiffness: 520, damping: 34, mass: 0.72 });
 
   const handleMove = useCallback(
     (e) => {
@@ -34,8 +34,8 @@ export default function MagneticButton({
       const dx = e.clientX - cx;
       const dy = e.clientY - cy;
       const dist = Math.hypot(dx, dy);
-      const influence = Math.max(0, 1 - dist / (RADIUS * 5));
-      const pull = 0.22 + influence * 0.35;
+      const influence = Math.max(0, 1 - dist / (RADIUS * 4.2));
+      const pull = 0.32 + influence * 0.48;
       x.set(dx * pull);
       y.set(dy * pull);
     },

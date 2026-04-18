@@ -27,3 +27,6 @@ supabase
 resend
 sentry-sdk
 posthog
+slowapi
+celery[redis]
+redis

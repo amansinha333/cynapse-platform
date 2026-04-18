@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 import time
 import uuid
@@ -14,6 +15,8 @@ from sqlalchemy import select
 from database import async_session
 from models import AuditIntelligence, PolicyConflict
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 BASE_URL = "http://127.0.0.1:8000"
 TOKEN_HEADER = "Authorization"
@@ -272,7 +275,7 @@ async def main() -> None:
 
         await ws.stop()
 
-    print(json.dumps(outputs, indent=2, default=str))
+    logger.info("%s", json.dumps(outputs, indent=2, default=str))
 
 
 if __name__ == "__main__":

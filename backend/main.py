@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any, cast
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete as sql_delete, text
+from sqlalchemy import select, delete as sql_delete, text, and_
 from contextlib import asynccontextmanager
 import asyncio
 import uuid
@@ -46,6 +48,7 @@ if _backend_dir not in sys.path:
 from database import get_db, init_db, async_session
 from models import AuditEvent, AuditIntelligence, Epic, Feature, SecureSetting, User, Vendor, Workspace
 from auth import decode_token, get_current_user, validate_email, require_roles
+from tenant import require_workspace_id
 from routers.auth import router as auth_router
 from routers.audit import router as audit_router
 from routers.billing import router as billing_router
@@ -53,8 +56,15 @@ from routers.invites import router as invites_router
 from routers.vault import router as vault_router
 from routers.crm import router as crm_router
 from routers.messages import router as messages_router
+from routers.public_compliance import router as public_compliance_router
+from routers.oidc_auth import router as oidc_auth_router
+from routers.user_privacy import router as user_privacy_router
+from routers.scim_stub import router as scim_router
+from rate_limit import limiter
 from utils.encryption import decrypt_value, encrypt_value, ensure_encryption_key_is_secure
 from services.ai_service import run_node1_analysis, run_node2_analysis, run_rice_analysis
+from services.pinecone_tenant import pinecone_workspace_filter
+from services.vector_utils import fit_vector_dimension
 from utils.websockets import dashboard_manager
 
 logger = logging.getLogger("cynapse")
@@ -157,19 +167,36 @@ async def lifespan(app: FastAPI):
     await init_db()
     # Seed default data if tables are empty
     async with async_session() as session:
+        ws_result = await session.execute(select(Workspace).where(Workspace.name == "Default Space"))
+        seed_ws = ws_result.scalar_one_or_none()
+        if not seed_ws:
+            seed_ws = Workspace(
+                id=f"ws-seed-{uuid.uuid4().hex[:10]}",
+                name="Default Space",
+                key=f"WS{uuid.uuid4().hex[:4].upper()}",
+            )
+            session.add(seed_ws)
+            await session.flush()
         result = await session.execute(select(Feature).limit(1))
         if result.scalar_one_or_none() is None:
             logger.info("Empty database detected — seeding default features and epics...")
+            wid = cast(str, seed_ws.id)
             for epic_data in DEFAULT_EPICS:
-                session.add(Epic(**epic_data))
+                session.add(Epic(**epic_data, workspace_id=wid))
             for feat_data in DEFAULT_FEATURES:
-                session.add(Feature(**feat_data))
+                session.add(Feature(**feat_data, workspace_id=wid))
             await session.commit()
             logger.info("Seeded %d features and %d epics.", len(DEFAULT_FEATURES), len(DEFAULT_EPICS))
     yield
 
 app = FastAPI(title="Cynapse AI Core", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(auth_router)
+app.include_router(oidc_auth_router)
+app.include_router(public_compliance_router)
+app.include_router(user_privacy_router)
+app.include_router(scim_router)
 app.include_router(audit_router)
 app.include_router(billing_router)
 app.include_router(invites_router)
@@ -228,24 +255,53 @@ async def posthog_request_tracking(request: Request, call_next):
     return response
 
 
-_cors_origins = list(filter(None, [
-    (os.getenv("FRONTEND_ORIGIN", "http://localhost:3000") or '').strip(),
-    (os.getenv("FRONTEND_ORIGIN_ALT", "http://localhost:5173") or '').strip(),
-    (os.getenv("FRONTEND_ORIGIN_LOOPBACK", "http://127.0.0.1:5173") or '').strip(),
-    (os.getenv("FRONTEND_ORIGIN_LOOPBACK_ALT", "http://127.0.0.1:3000") or '').strip(),
-]))
-_vercel = os.getenv("VERCEL_URL")
-if _vercel:
-    _cors_origins.append(f"https://{_vercel}")
+def _parse_csv_origins(name: str) -> list[str]:
+    raw = (os.getenv(name, "") or "").strip()
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _build_cors_origins() -> list[str]:
+    """Strict browser origin allowlist; set FRONTEND_URL (and optional CORS_EXTRA_ORIGINS) in production."""
+    primary = (
+        os.getenv("FRONTEND_URL")
+        or os.getenv("FRONTEND_ORIGIN")
+        or "http://localhost:5173"
+    ).strip()
+    origins: list[str] = [primary]
+    origins.extend(_parse_csv_origins("CORS_EXTRA_ORIGINS"))
+    for key in ("FRONTEND_ORIGIN_ALT", "FRONTEND_ORIGIN_LOOPBACK", "FRONTEND_ORIGIN_LOOPBACK_ALT"):
+        v = (os.getenv(key) or "").strip()
+        if v and v not in origins:
+            origins.append(v)
+    vercel = (os.getenv("VERCEL_URL") or "").strip()
+    if vercel:
+        u = vercel if vercel.startswith("http") else f"https://{vercel}"
+        if u not in origins:
+            origins.append(u)
+    # Preserve order, drop duplicates
+    seen: set[str] = set()
+    out: list[str] = []
+    for o in origins:
+        if o not in seen:
+            seen.add(o)
+            out.append(o)
+    return out
+
+
+_cors_origins = _build_cors_origins()
+_cors_regex = (os.getenv("CORS_ALLOW_VERCEL_PREVIEW_REGEX") or "").strip() or None
+if _cors_regex == "1":
+    _cors_regex = r"^https://.*\.vercel\.app$"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    # Helps when the Vercel URL changes or when env values include minor formatting differences.
-    allow_origin_regex=r"^https://.*\.vercel\.app$",
+    allow_origin_regex=_cors_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Gemini-Key"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -425,6 +481,19 @@ async def _resolve_runtime_ai_key(db: AsyncSession, current_user: User) -> str:
     return await _get_user_secret(db, cast(str, current_user.id), "gemini_api_key")
 
 
+async def _resolve_gemini_key_for_audit(request: Request, db: AsyncSession, current_user: User) -> str:
+    """Server-side Gemini key: env, then encrypted user secret; client header only if ALLOW_CLIENT_GEMINI_KEY."""
+    server = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if server:
+        return server
+    user_key = await _get_user_secret(db, cast(str, current_user.id), "gemini_api_key")
+    if user_key:
+        return user_key
+    if os.getenv("ALLOW_CLIENT_GEMINI_KEY", "").lower() in ("1", "true", "yes"):
+        return (request.headers.get("X-Gemini-Key") or "").strip()
+    return ""
+
+
 async def _resolve_runtime_pinecone_key(db: AsyncSession, current_user: User) -> str:
     key = (os.getenv("PINECONE_API_KEY", "") or "").strip()
     if key:
@@ -462,14 +531,6 @@ async def _gemini_embed_text(text: str, api_key: str) -> list[float]:
         request=httpx.Request("POST", "https://generativelanguage.googleapis.com"),
         response=httpx.Response(status_code=404),
     )
-
-
-def _fit_vector_dimension(values: list[float], target_dim: int) -> list[float]:
-    if len(values) == target_dim:
-        return values
-    if len(values) > target_dim:
-        return values[:target_dim]
-    return values + [0.0] * (target_dim - len(values))
 
 
 def _extract_first_json_object(text_value: str) -> dict:
@@ -621,10 +682,10 @@ async def _run_agentic_hard_gate(
         }
 
     proposed_text = f"Title: {feature_title}\nDescription: {feature_description}".strip()
-    query_vector = _fit_vector_dimension(await _gemini_embed_text(proposed_text, gemini_key), PINECONE_VECTOR_DIMENSION)
+    query_vector = fit_vector_dimension(await _gemini_embed_text(proposed_text, gemini_key), PINECONE_VECTOR_DIMENSION)
     pc = Pinecone(api_key=pinecone_key)
     index = pc.Index(pinecone_index)
-    pinecone_filter: Any = {"workspace_id": {"$eq": workspace_id}}
+    pinecone_filter: Any = pinecone_workspace_filter(workspace_id)
     query_result = await asyncio.to_thread(
         index.query,
         vector=query_vector,
@@ -706,14 +767,16 @@ def _feature_to_dict(f: Feature) -> dict:
 
 @app.get("/api/features")
 async def list_features(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Feature).order_by(Feature.created_at.desc()))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Feature).where(Feature.workspace_id == ws).order_by(Feature.created_at.desc()))
     features = result.scalars().all()
     return [_feature_to_dict(f) for f in features]
 
 
 @app.get("/api/features/{feature_id}")
 async def get_feature(feature_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Feature).where(Feature.id == feature_id))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Feature).where(and_(Feature.id == feature_id, Feature.workspace_id == ws)))
     feature = result.scalar_one_or_none()
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
@@ -722,6 +785,7 @@ async def get_feature(feature_id: str, db: AsyncSession = Depends(get_db), curre
 
 @app.post("/api/features")
 async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ws = require_workspace_id(current_user)
     try:
         hard_gate = await _run_agentic_hard_gate(
             db,
@@ -785,6 +849,7 @@ async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db)
         attachments=data.attachments,
         attestation=data.attestation,
         audit_results=data.audit_results,
+        workspace_id=ws,
     )
     db.add(feature)
     await db.flush()
@@ -817,7 +882,8 @@ async def create_feature(data: FeatureCreate, db: AsyncSession = Depends(get_db)
 
 @app.put("/api/features/{feature_id}")
 async def update_feature(feature_id: str, data: FeatureCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Feature).where(Feature.id == feature_id))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Feature).where(and_(Feature.id == feature_id, Feature.workspace_id == ws)))
     feature = result.scalar_one_or_none()
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
@@ -854,7 +920,8 @@ async def update_feature(feature_id: str, data: FeatureCreate, db: AsyncSession 
 
 @app.delete("/api/features/{feature_id}")
 async def delete_feature(feature_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Feature).where(Feature.id == feature_id))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Feature).where(and_(Feature.id == feature_id, Feature.workspace_id == ws)))
     feature = result.scalar_one_or_none()
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
@@ -867,15 +934,17 @@ async def delete_feature(feature_id: str, db: AsyncSession = Depends(get_db), cu
 # =============================================================================
 @app.get("/api/epics")
 async def list_epics(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Epic).order_by(Epic.created_at.desc()))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Epic).where(Epic.workspace_id == ws).order_by(Epic.created_at.desc()))
     epics = result.scalars().all()
     return [{"id": e.id, "name": e.name, "color": e.color} for e in epics]
 
 
 @app.post("/api/epics")
 async def create_epic(data: EpicCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ws = require_workspace_id(current_user)
     epic_id = data.id or f"epic-{uuid.uuid4().hex[:8]}"
-    epic = Epic(id=epic_id, name=data.name, color=data.color)
+    epic = Epic(id=epic_id, name=data.name, color=data.color, workspace_id=ws)
     db.add(epic)
     await db.flush()
     return {"id": epic.id, "name": epic.name, "color": epic.color}
@@ -886,7 +955,8 @@ async def create_epic(data: EpicCreate, db: AsyncSession = Depends(get_db), curr
 # =============================================================================
 @app.get("/api/vendors")
 async def list_vendors(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Vendor).order_by(Vendor.created_at.desc()))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Vendor).where(Vendor.workspace_id == ws).order_by(Vendor.created_at.desc()))
     vendors = result.scalars().all()
     return [
         {
@@ -907,6 +977,7 @@ async def list_vendors(db: AsyncSession = Depends(get_db), current_user: User = 
 
 @app.post("/api/vendors")
 async def create_vendor(data: VendorCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ws = require_workspace_id(current_user)
     vendor_id = data.id or f"v-{uuid.uuid4().hex[:6]}"
     vendor = Vendor(
         id=vendor_id,
@@ -919,6 +990,7 @@ async def create_vendor(data: VendorCreate, db: AsyncSession = Depends(get_db), 
         avatar_url=data.avatar_url or "",
         budget=data.budget or "",
         project_count=int(data.project_count or 0),
+        workspace_id=ws,
     )
     db.add(vendor)
     await db.flush()
@@ -941,7 +1013,13 @@ async def create_vendor(data: VendorCreate, db: AsyncSession = Depends(get_db), 
 # =============================================================================
 @app.get("/api/audit-log")
 async def list_audit_events(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(500))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(
+        select(AuditEvent)
+        .where(AuditEvent.workspace_id == ws)
+        .order_by(AuditEvent.timestamp.desc())
+        .limit(500)
+    )
     events = result.scalars().all()
     return [{
         "id": e.id,
@@ -955,12 +1033,14 @@ async def list_audit_events(db: AsyncSession = Depends(get_db), current_user: Us
 
 @app.post("/api/audit-log")
 async def create_audit_event(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ws = require_workspace_id(current_user)
     event = AuditEvent(
         id=data.get("id", f"audit-{uuid.uuid4().hex[:8]}"),
         user=data.get("user", "System"),
         role=data.get("role", "System"),
         type=data.get("type", "view"),
         message=data.get("message", ""),
+        workspace_id=ws,
     )
     db.add(event)
     await db.flush()
@@ -972,10 +1052,13 @@ async def create_audit_event(data: dict, db: AsyncSession = Depends(get_db), cur
 # =============================================================================
 
 @app.post("/api/v1/audit/node1")
-async def api_node1(req: Request, current_user: User = Depends(get_current_user)):
+async def api_node1(
+    req: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Node 1 — Internal Policy & Regulatory Audit (Real Gemini AI)."""
-    api_key = req.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY", "")
-    api_key = api_key.strip()
+    api_key = (await _resolve_gemini_key_for_audit(req, db, current_user)).strip()
 
     try:
         body = await req.json()
@@ -1028,10 +1111,13 @@ async def api_node1(req: Request, current_user: User = Depends(get_current_user)
 
 
 @app.post("/api/v1/audit/node2")
-async def api_node2(req: Request, current_user: User = Depends(get_current_user)):
+async def api_node2(
+    req: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Node 2 — External Web & Sentiment Audit (Real Gemini AI)."""
-    api_key = req.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY", "")
-    api_key = api_key.strip()
+    api_key = (await _resolve_gemini_key_for_audit(req, db, current_user)).strip()
 
     try:
         body = await req.json()
@@ -1093,10 +1179,13 @@ async def api_node2(req: Request, current_user: User = Depends(get_current_user)
 
 
 @app.post("/api/v1/analyze-rice")
-async def api_rice(req: Request, current_user: User = Depends(get_current_user)):
+async def api_rice(
+    req: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """RICE Scoring via Gemini AI."""
-    api_key = req.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY", "")
-    api_key = api_key.strip()
+    api_key = (await _resolve_gemini_key_for_audit(req, db, current_user)).strip()
 
     try:
         body = await req.json()
@@ -1225,6 +1314,7 @@ async def list_users(db: AsyncSession = Depends(get_db), current_user: User = De
 async def update_user_role(
     user_id: str,
     payload: dict,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_roles("Admin")),
 ):
@@ -1236,8 +1326,23 @@ async def update_user_role(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+    admin_ws = str(getattr(admin_user, "workspace_id", "") or "")
+    target_ws = str(getattr(target, "workspace_id", "") or "")
+    if not admin_ws or admin_ws != target_ws:
+        raise HTTPException(status_code=403, detail="Cannot change roles for users outside your workspace")
     target_any: Any = target
+    old_role = str(target_any.role)
     target_any.role = new_role
+    client_ip = request.client.host if request.client else ""
+    ev = AuditEvent(
+        id=f"audit-{uuid.uuid4().hex[:10]}",
+        user=str(admin_user.email),
+        role=str(admin_user.role),
+        type="update",
+        message=f"admin_role_change target={user_id} {old_role}->{new_role} ip={client_ip}",
+        workspace_id=admin_ws,
+    )
+    db.add(ev)
     await db.flush()
     return {"id": target.id, "role": target.role}
 

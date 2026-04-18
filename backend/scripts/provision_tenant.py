@@ -11,6 +11,7 @@ Public `users` row uses the same id as auth.users and a bcrypt hash compatible w
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import secrets
@@ -23,6 +24,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import bcrypt
 from supabase import create_client
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Env: backend/.env (same pattern as backend/main.py)
@@ -96,13 +99,14 @@ def _delete_auth_user(supabase, user_id: str) -> None:
 
 
 def main() -> int:
-    print(ASCII_BANNER)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logger.info("%s", ASCII_BANNER)
 
     try:
         supabase_url = _require_env("SUPABASE_URL")
         service_role = _require_env("SUPABASE_SERVICE_ROLE_KEY")
     except Exception as exc:
-        print(f"ERROR: {exc}")
+        logger.error("Configuration error: %s", exc)
         return 1
 
     supabase = create_client(supabase_url, service_role)
@@ -110,7 +114,7 @@ def main() -> int:
     try:
         workspace_name = input("Organization / Workspace Name (e.g. Danfoss): ").strip()
         if not workspace_name:
-            print("ERROR: Workspace name is required.")
+            logger.error("Workspace name is required.")
             return 1
 
         workspace_id = f"ws-{uuid.uuid4().hex[:10]}"
@@ -130,14 +134,14 @@ def main() -> int:
         try:
             supabase.table("workspaces").insert(workspace_payload).execute()
         except Exception as exc:
-            print(f"ERROR: Failed to insert workspace row into `workspaces`: {exc}")
+            logger.error("Failed to insert workspace row into `workspaces`: %s", exc)
             return 1
 
-        print(f"  → Inserted workspace `workspaces.id` = {workspace_id}")
+        logger.info("Inserted workspace workspaces.id=%s", workspace_id)
 
         admin_email = input("Admin Email: ").strip().lower()
         if not admin_email or "@" not in admin_email:
-            print("ERROR: A valid admin email is required.")
+            logger.error("A valid admin email is required.")
             _delete_workspace_row(supabase, workspace_id)
             return 1
 
@@ -145,8 +149,8 @@ def main() -> int:
         password = pwd_hint if pwd_hint else _generate_password_12()
 
         if not _PASSWORD_RE.match(password):
-            print(
-                "ERROR: Password must be at least 8 characters and include uppercase, lowercase, and a number "
+            logger.error(
+                "Password must be at least 8 characters and include uppercase, lowercase, and a number "
                 "(same rules as the product API). Leave blank to auto-generate."
             )
             _delete_workspace_row(supabase, workspace_id)
@@ -171,7 +175,7 @@ def main() -> int:
             if not auth_user_id:
                 raise RuntimeError(f"Unexpected create_user response (no user id): {auth_resp!r}")
         except Exception as exc:
-            print(f"ERROR: Supabase Auth admin.create_user failed: {exc}")
+            logger.error("Supabase Auth admin.create_user failed: %s", exc)
             _delete_workspace_row(supabase, workspace_id)
             return 1
 
@@ -191,7 +195,7 @@ def main() -> int:
         try:
             supabase.table("users").insert(user_payload).execute()
         except Exception as exc:
-            print(f"ERROR: Failed to insert into `users` (linking admin to workspace): {exc}")
+            logger.error("Failed to insert into `users` (linking admin to workspace): %s", exc)
             _delete_auth_user(supabase, auth_user_id)
             _delete_workspace_row(supabase, workspace_id)
             return 1
@@ -199,24 +203,25 @@ def main() -> int:
         login_url = "https://cynapse-platform.vercel.app/login"
 
         border = "=" * 64
-        print()
-        print(border)
-        print("  SUCCESS — TENANT PROVISIONED")
-        print(border)
-        print(f"  Organization Name  : {workspace_name}")
-        print(f"  Organization ID    : {workspace_id}")
-        print(f"  Admin Email        : {admin_email}")
-        print(f"  Initial Password   : {password}")
-        print(f"  Login URL          : {login_url}")
-        print(border)
-        print()
+        logger.info("%s", border)
+        logger.info("SUCCESS — TENANT PROVISIONED")
+        logger.info("%s", border)
+        logger.info("Organization Name: %s", workspace_name)
+        logger.info("Organization ID: %s", workspace_id)
+        logger.info("Admin Email: %s", admin_email)
+        logger.info("Login URL: %s", login_url)
+        logger.warning(
+            "Initial admin password is written once to stderr only (not passed through logging handlers)."
+        )
+        sys.stderr.write(f"\n  Initial Password   : {password}\n")
+        logger.info("%s", border)
         return 0
 
     except KeyboardInterrupt:
-        print("\nAborted.")
+        logger.warning("Aborted.")
         return 130
     except Exception as exc:
-        print(f"ERROR: Unexpected failure: {exc}")
+        logger.error("Unexpected failure: %s", exc)
         return 1
 
 

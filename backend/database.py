@@ -143,6 +143,63 @@ async def init_db():
                 except SQLAlchemyError:
                     pass
 
+        await _migrate_workspace_scope_columns(conn, engine.dialect.name)
+
+
+async def _migrate_workspace_scope_columns(conn, dialect_name: str) -> None:
+    """Add workspace_id to tenant-scoped tables and backfill from an existing workspace."""
+    tables = ("features", "epics", "vendors", "audit_events")
+    if dialect_name == "sqlite":
+        for tbl in tables:
+            try:
+                info = await conn.execute(text(f"PRAGMA table_info({tbl})"))
+                cols = {row[1] for row in info.fetchall()}
+            except SQLAlchemyError:
+                cols = set()
+            if "workspace_id" in cols:
+                continue
+            try:
+                await conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN workspace_id VARCHAR"))
+            except SQLAlchemyError:
+                pass
+    elif dialect_name == "postgresql":
+        for tbl in tables:
+            try:
+                await conn.execute(
+                    text(
+                        f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS workspace_id VARCHAR "
+                        f"REFERENCES workspaces(id)"
+                    )
+                )
+            except SQLAlchemyError:
+                pass
+
+    # Ensure at least one workspace exists, then backfill NULL workspace_id
+    try:
+        r = await conn.execute(text("SELECT id FROM workspaces ORDER BY created_at ASC LIMIT 1"))
+        row = r.fetchone()
+        default_ws = row[0] if row else None
+        if not default_ws:
+            import uuid
+
+            default_ws = f"ws-mig-{uuid.uuid4().hex[:10]}"
+            await conn.execute(
+                text(
+                    "INSERT INTO workspaces (id, name, key, description) VALUES "
+                    f"(:id, 'Default Space', :wk, '')"
+                ),
+                {"id": default_ws, "wk": f"WS{uuid.uuid4().hex[:4].upper()}"},
+            )
+        for tbl in tables:
+            await conn.execute(
+                text(
+                    f"UPDATE {tbl} SET workspace_id = :wid WHERE workspace_id IS NULL OR TRIM(workspace_id) = ''"
+                ),
+                {"wid": default_ws},
+            )
+    except SQLAlchemyError:
+        pass
+
 
 async def get_db():
     """Dependency that yields an async DB session."""

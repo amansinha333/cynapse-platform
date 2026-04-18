@@ -3,7 +3,7 @@ import uuid
 import urllib.parse
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -20,6 +20,7 @@ from auth import (
 )
 from database import get_db
 from models import User, Workspace
+from rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -42,7 +43,8 @@ class RefreshRequest(BaseModel):
 
 
 @router.post("/register")
-async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("8/minute")
+async def register(request: Request, data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     email = data.email.strip().lower()
     if not validate_email(email):
         raise HTTPException(status_code=400, detail="Invalid email format")
@@ -100,7 +102,8 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login")
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("30/minute")
+async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     email = data.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
@@ -146,25 +149,6 @@ async def refresh_session(data: RefreshRequest, db: AsyncSession = Depends(get_d
         "token_type": "bearer",
     }
 
-
-@router.get("/make-admin")
-async def make_admin(email: str, secret: str, db: AsyncSession = Depends(get_db)):
-    if secret != "cynapse-admin-2026":
-        raise HTTPException(status_code=403, detail="Invalid secret")
-    
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    user.role = "admin"
-    await db.commit()
-    
-    return {"message": f"Successfully elevated {email} to admin"}
-
-
-from fastapi import Request
 
 @router.get("/google/login")
 async def google_login(request: Request):
@@ -274,5 +258,16 @@ async def auth_apple():
     return {"message": "Apple OAuth provider pending configuration"}
 
 @router.get("/sso")
-async def auth_sso():
-    return {"message": "SAML/SSO provider pending configuration"}
+async def auth_sso(request: Request):
+    """OpenID Connect when OIDC_ISSUER is set; otherwise guidance for SAML / enterprise setup."""
+    issuer = (os.getenv("OIDC_ISSUER") or "").strip()
+    if issuer:
+        base = (os.getenv("BACKEND_URL") or str(request.base_url).rstrip("/")).rstrip("/")
+        if "onrender.com" in base and base.startswith("http://"):
+            base = base.replace("http://", "https://", 1)
+        return RedirectResponse(f"{base}/api/auth/oidc/login")
+    return {
+        "message": "Enterprise SSO: configure OIDC_ISSUER + OIDC_CLIENT_ID + OIDC_CLIENT_SECRET for OpenID Connect. "
+        "SAML 2.0 federation is available via support-assisted setup.",
+        "docs": "/api/public/enterprise-config",
+    }

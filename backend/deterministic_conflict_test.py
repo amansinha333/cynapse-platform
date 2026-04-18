@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import logging
 import uuid
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from sqlalchemy import select
 from database import async_session
 from models import PolicyConflict
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 BASE_URL = "http://127.0.0.1:8000"
 
@@ -141,7 +144,8 @@ async def main() -> None:
         with contextlib.suppress(BaseException):
             await ws_task
 
-    print(
+    logger.info(
+        "%s",
         json.dumps(
             {
                 "register_status": register_resp.status_code,
@@ -154,7 +158,7 @@ async def main() -> None:
                 "policy_conflicts_row": db_conflict_row,
             },
             indent=2,
-        )
+        ),
     )
 
 

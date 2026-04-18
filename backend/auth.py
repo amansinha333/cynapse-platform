@@ -16,7 +16,31 @@ from models import User
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-production-cynapse")
+_WEAK_JWT_SECRETS = frozenset(
+    {
+        "",
+        "change-me-in-production-cynapse",
+        "change-me-in-production",
+        "change-me",
+    }
+)
+
+
+def _resolve_jwt_secret() -> str:
+    if os.getenv("UNIT_TESTING", "").strip().lower() in ("1", "true", "yes"):
+        return (os.getenv("JWT_SECRET_KEY") or "unit-test-jwt-secret-not-for-production").strip()
+    raw = (os.getenv("JWT_SECRET_KEY") or "").strip()
+    if raw and raw not in _WEAK_JWT_SECRETS:
+        return raw
+    if os.getenv("ALLOW_WEAK_JWT_FOR_LOCAL_DEV", "").strip().lower() in ("1", "true", "yes"):
+        return raw or "local-dev-only-insecure-jwt-not-for-production"
+    raise RuntimeError(
+        "JWT_SECRET_KEY must be set to a strong random value (e.g. openssl rand -hex 32). "
+        "For temporary local development only, set ALLOW_WEAK_JWT_FOR_LOCAL_DEV=true."
+    )
+
+
+SECRET_KEY = _resolve_jwt_secret()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "120"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "7"))

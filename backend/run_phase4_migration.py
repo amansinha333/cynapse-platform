@@ -1,9 +1,13 @@
 import asyncio
+import logging
 from pathlib import Path
 
 from sqlalchemy import text
 
 from database import engine
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
@@ -12,7 +16,7 @@ async def main() -> None:
     async with engine.begin() as conn:
         for stmt in statements:
             await conn.execute(text(stmt))
-    print("migration_applied")
+    logger.info("migration_applied")
 
 
 if __name__ == "__main__":

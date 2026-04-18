@@ -45,6 +45,8 @@ class Feature(Base):
     attestation = Column(JSON_FIELD, default=dict)
     audit_results = Column(JSON_FIELD, default=dict)  # Stores node1/node2 results
 
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
@@ -55,6 +57,7 @@ class Epic(Base):
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
     color = Column(String, default="#6366f1")
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -71,6 +74,7 @@ class Vendor(Base):
     avatar_url = Column(Text, default="")
     budget = Column(String, default="")
     project_count = Column(Integer, default=0)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -83,6 +87,7 @@ class AuditEvent(Base):
     role = Column(String, default="System")
     type = Column(String, default="view")  # login | create | update | delete | override | blocked | upload | automation | view
     message = Column(Text, default="")
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
 
 
 class Workspace(Base):
@@ -114,6 +119,8 @@ class User(Base):
 
 
 class SecureSetting(Base):
+    """User secrets stored with Fernet (SETTINGS_ENCRYPTION_KEY) via utils.encryption encrypt_value."""
+
     __tablename__ = "secure_settings"
 
     id = Column(String, primary_key=True, index=True)

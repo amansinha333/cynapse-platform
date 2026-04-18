@@ -9,12 +9,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import get_current_user
 from database import get_db
 from models import AuditEvent, Epic, Feature, User, Vendor
+from tenant import require_workspace_id
 
 router = APIRouter(prefix="/api/crm", tags=["crm"])
 
@@ -43,11 +44,16 @@ async def crm_stats(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    total_f = await db.scalar(select(func.count()).select_from(Feature)) or 0
-    total_e = await db.scalar(select(func.count()).select_from(Epic)) or 0
-    total_v = await db.scalar(select(func.count()).select_from(Vendor)) or 0
+    ws = require_workspace_id(current_user)
+    total_f = (
+        await db.scalar(select(func.count()).select_from(Feature).where(Feature.workspace_id == ws)) or 0
+    )
+    total_e = await db.scalar(select(func.count()).select_from(Epic).where(Epic.workspace_id == ws)) or 0
+    total_v = await db.scalar(select(func.count()).select_from(Vendor).where(Vendor.workspace_id == ws)) or 0
     delivered = await db.scalar(
-        select(func.count()).select_from(Feature).where(Feature.status == "Delivery")
+        select(func.count())
+        .select_from(Feature)
+        .where(and_(Feature.workspace_id == ws, Feature.status == "Delivery"))
     ) or 0
     completion = (delivered / total_f * 100.0) if total_f else 0.0
     return {
@@ -65,6 +71,7 @@ async def crm_create_client(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
+    ws = require_workspace_id(current_user)
     vid = f"v-{uuid.uuid4().hex[:8]}"
     v = Vendor(
         id=vid,
@@ -77,6 +84,7 @@ async def crm_create_client(
         avatar_url=(data.avatar_url or "").strip(),
         budget=(data.budget or "").strip(),
         project_count=int(data.project_count or 0),
+        workspace_id=ws,
     )
     db.add(v)
     await db.flush()
@@ -100,7 +108,8 @@ async def crm_clients(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    result = await db.execute(select(Vendor).order_by(Vendor.created_at.desc()))
+    ws = require_workspace_id(current_user)
+    result = await db.execute(select(Vendor).where(Vendor.workspace_id == ws).order_by(Vendor.created_at.desc()))
     rows = result.scalars().all()
     return [
         {
@@ -126,15 +135,20 @@ async def crm_projects(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    epics_r = await db.execute(select(Epic).order_by(Epic.created_at.desc()))
+    ws = require_workspace_id(current_user)
+    epics_r = await db.execute(select(Epic).where(Epic.workspace_id == ws).order_by(Epic.created_at.desc()))
     epics = epics_r.scalars().all()
     out: list[dict[str, Any]] = []
     for e in epics:
         cnt = await db.scalar(
-            select(func.count()).select_from(Feature).where(Feature.epic_id == e.id)
+            select(func.count())
+            .select_from(Feature)
+            .where(and_(Feature.epic_id == e.id, Feature.workspace_id == ws))
         ) or 0
         total_rice = await db.scalar(
-            select(func.coalesce(func.sum(Feature.rice_score), 0)).where(Feature.epic_id == e.id)
+            select(func.coalesce(func.sum(Feature.rice_score), 0)).where(
+                and_(Feature.epic_id == e.id, Feature.workspace_id == ws)
+            )
         ) or 0
         progress = min(100, int(cnt * 7 + 10)) % 100  # lightweight visual progress
         out.append(
@@ -155,9 +169,15 @@ async def crm_inbox(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
+    ws = require_workspace_id(current_user)
     uid = current_user.id
     read_set = _read_by_user.setdefault(uid, set())
-    result = await db.execute(select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(80))
+    result = await db.execute(
+        select(AuditEvent)
+        .where(AuditEvent.workspace_id == ws)
+        .order_by(AuditEvent.timestamp.desc())
+        .limit(80)
+    )
     events = result.scalars().all()
     items: list[dict[str, Any]] = []
     for ev in events:

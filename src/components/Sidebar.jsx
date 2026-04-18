@@ -58,10 +58,10 @@ function NavTooltip({ label, show }) {
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -6, scale: 0.95 }}
           transition={{ duration: 0.15, ease: easings.outExpo }}
-          className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl pointer-events-none"
+          className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#042f1f] text-white text-xs font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl pointer-events-none"
         >
           {label}
-          <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45" />
+          <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-[#042f1f] rotate-45" />
         </motion.div>
       )}
     </AnimatePresence>
@@ -86,8 +86,8 @@ function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskC
         className={({ isActive }) =>
           `flex items-center ${expanded ? 'gap-3 px-4' : 'justify-center px-0'} py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
             isActive
-              ? 'text-[#24389c] dark:text-indigo-400'
-              : 'text-slate-500 dark:text-slate-400 hover:text-[#191c1e] dark:hover:text-slate-200'
+              ? 'text-emerald-800 dark:text-emerald-300'
+              : 'text-slate-600 dark:text-slate-400 hover:text-[#042f1f] dark:hover:text-slate-200'
           }`
         }
       >
@@ -98,8 +98,8 @@ function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskC
                 layoutId="activeNavBg"
                 className="absolute inset-0 rounded-xl"
                 style={{
-                  background: 'rgba(99, 102, 241, 0.08)',
-                  border: '1px solid rgba(99, 102, 241, 0.1)',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.18)',
                 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               />
@@ -108,7 +108,7 @@ function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskC
               <motion.div
                 layoutId="hoverNavBg"
                 className="absolute inset-0 rounded-xl"
-                style={{ background: 'rgba(241, 245, 249, 0.95)' }}
+                style={{ background: 'rgba(236, 253, 245, 0.95)' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -116,12 +116,12 @@ function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskC
               />
             )}
             <div className="relative shrink-0 z-10">
-              <item.icon size={18} className={`transition-colors duration-200 ${isActive ? 'text-[#24389c]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+              <item.icon size={18} className={`transition-colors duration-200 ${isActive ? 'text-emerald-700' : 'text-slate-400 group-hover:text-emerald-700/80'}`} />
               {!expanded && item.badgeKey === 'compliance' && highRiskCount > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white z-20"
+                  className="absolute -top-1 -right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-emerald-50 z-20"
                 />
               )}
             </div>
@@ -142,7 +142,7 @@ function NavItem({ item, index, expanded, hoveredItem, setHoveredItem, highRiskC
               <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="ml-auto relative z-10 bg-[#24389c] text-white text-[10px] font-black px-2 py-0.5 rounded-full ring-4 ring-indigo-50 dark:ring-indigo-900/30"
+                className="ml-auto relative z-10 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full ring-4 ring-emerald-100 dark:ring-emerald-900/30"
               >
                 {highRiskCount}
               </motion.span>
@@ -169,16 +169,16 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
       transition={{ duration: 0.3, ease: easings.outExpo }}
       className="glass shrink-0 hidden lg:flex flex-col relative z-30 overflow-hidden"
       style={{
-        background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+        background: 'linear-gradient(180deg, #ffffff 0%, #f0fdf4 55%, #ecfdf5 100%)',
         backdropFilter: 'blur(20px) saturate(160%)',
-        borderRight: '1px solid #e2e8f0',
+        borderRight: '1px solid rgb(209 250 229)',
       }}
     >
       <div
         className="absolute inset-0 pointer-events-none opacity-90"
         style={{
           background:
-            'radial-gradient(ellipse 120% 80% at 50% 0%, rgba(148, 163, 184, 0.12) 0%, transparent 55%)',
+            'radial-gradient(ellipse 120% 80% at 50% 0%, rgba(16, 185, 129, 0.09) 0%, transparent 55%)',
         }}
       />
 
@@ -228,7 +228,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-[10px] font-black text-indigo-500/95 uppercase tracking-widest px-4 mb-2"
+            className="text-[10px] font-black text-emerald-700/90 uppercase tracking-widest px-4 mb-2"
           >
             CRM hub
           </motion.div>
@@ -272,7 +272,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest px-4 mb-2"
+                className="text-[10px] font-black text-emerald-700/70 dark:text-slate-600 uppercase tracking-widest px-4 mb-2"
               >
                 Utility
               </motion.div>
@@ -299,7 +299,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
             onClick={onToggle}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
-            className={`w-full flex items-center ${sidebarOpen ? 'justify-start gap-2 px-4' : 'justify-center'} py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold`}
+            className={`w-full flex items-center ${sidebarOpen ? 'justify-start gap-2 px-4' : 'justify-center'} py-2 rounded-xl bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-800/70 hover:text-[#042f1f] transition-colors text-xs font-bold`}
           >
             <motion.div
               animate={{ rotate: sidebarOpen ? 0 : 180 }}
@@ -337,7 +337,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
               className="rounded-2xl p-4 glass-card"
             >
               <div className="text-[10px] font-bold gradient-text mb-1">SOVEREIGN ARCHITECT</div>
-              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+              <div className="text-[10px] text-emerald-800/50 dark:text-slate-500 font-medium">
                 System Instance v3.4.1
               </div>
             </motion.div>
@@ -348,7 +348,7 @@ export default function Sidebar({ sidebarOpen = true, onToggle, highRiskCount = 
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={springs.gentle}
-              className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center"
+              className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center"
               title="System Instance v3.4.1"
             >
               <span className="relative flex h-2 w-2">

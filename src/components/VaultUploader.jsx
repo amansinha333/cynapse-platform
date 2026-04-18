@@ -1,13 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fetchVaultDocumentUrl, fetchVaultDocuments, uploadVaultDocument, deleteVaultDocument } from '../utils/api';
 import { useProject } from '../context/ProjectContext';
+
+const TOAST_MS = 5000;
 
 export default function VaultUploader() {
   const { currentUser } = useProject();
   const [docs, setDocs] = useState([]);
   const [uploading, setUploading] = useState(false);
+  /** Tracks Celery background phase when REDIS_URL is set (upload vs vector indexing). */
+  const [ingestPhase, setIngestPhase] = useState('idle');
   const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
   const isAdmin = currentUser?.role === 'admin';
+
+  const showToast = (message, variant = 'success') => {
+    setToast({ message, variant });
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), TOAST_MS);
+  };
+
+  useEffect(() => () => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+  }, []);
 
   const loadDocs = async () => {
     try {
@@ -35,17 +51,30 @@ export default function VaultUploader() {
     }
     setError('');
     setUploading(true);
+    setIngestPhase('idle');
     try {
       for (const file of pdfFiles) {
         const form = new FormData();
         form.append('file', file);
-        await uploadVaultDocument(form);
+        await uploadVaultDocument(form, {
+          onPhase: setIngestPhase,
+          pollIntervalMs: 3000
+        });
       }
       await loadDocs();
+      showToast(
+        pdfFiles.length === 1
+          ? 'Document indexed and ready for compliance search.'
+          : `${pdfFiles.length} documents indexed and ready for compliance search.`,
+        'success'
+      );
     } catch (err) {
-      setError(String(err.message || 'Upload failed'));
+      const msg = String(err.message || 'Upload failed');
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setUploading(false);
+      setIngestPhase('idle');
     }
   };
 
@@ -68,6 +97,12 @@ export default function VaultUploader() {
     }
   };
 
+  const uploadButtonLabel = !uploading
+    ? 'Select PDFs'
+    : ingestPhase === 'analyzing'
+      ? 'Analyzing compliance vectors…'
+      : 'Uploading…';
+
   return (
     <div className="space-y-3">
       {isAdmin && (
@@ -80,9 +115,9 @@ export default function VaultUploader() {
         }}
       >
         <p className="text-sm font-semibold">Drag and drop PDF files</p>
-        <p className="text-xs text-slate-500 mt-1 mb-3">Max file size: 200 MB. Documents are directly vectorized to Pinecone.</p>
+        <p className="text-xs text-slate-500 mt-1 mb-3">Max file size: 200 MB. Large PDFs may run in a background worker; the UI waits until indexing finishes.</p>
         <label className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold cursor-pointer">
-          {uploading ? 'Uploading...' : 'Select PDFs'}
+          {uploadButtonLabel}
           <input
             type="file"
             accept="application/pdf"
@@ -94,7 +129,20 @@ export default function VaultUploader() {
       </div>
       )}
 
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+
+      {toast && (
+        <div
+          role="status"
+          className={`fixed bottom-5 right-5 z-50 max-w-md rounded-xl border px-4 py-3 text-sm font-semibold shadow-2xl ${
+            toast.variant === 'error'
+              ? 'border-rose-300 bg-rose-950 text-rose-50 dark:border-rose-800 dark:bg-rose-950/95'
+              : 'border-emerald-300 bg-emerald-950 text-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/95'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
 
       <div className="border rounded-xl overflow-hidden">
         <table className="min-w-full text-sm">

@@ -16,7 +16,7 @@ const MODEL_URL = "/models/character.glb";
 /** Manual, known-good placement relative to the red debug cube (origin). */
 const MANUAL_SCALE = 0.38;
 const MANUAL_POS = [0.35, -2.0, 0];
-const DEBUG_HERO = true;
+const DEBUG_HERO = import.meta.env.DEV;
 
 const SCREEN_GLOW = {
   // Pull back toward the screen so it doesn't blow out teeth/speculars

@@ -137,7 +137,9 @@ export function ProjectProvider({ children }) {
         } catch { /* vendors may be empty */ }
 
       } catch {
-        console.log('Backend offline. Using Local Mode.');
+        if (import.meta.env.DEV) {
+          console.log('Backend offline. Using Local Mode.');
+        }
         setBackendStatus(false);
       }
     };
@@ -318,30 +320,44 @@ export function ProjectProvider({ children }) {
 
   const handleFeatureSave = useCallback(async (updatedFormData, isEdit) => {
     const previousFeature = isEdit ? features.find(f => f.id === updatedFormData.id) : null;
+    if (backendStatus) {
+      if (isEdit) {
+        await apiUpdateFeature(updatedFormData.id, updatedFormData);
+      } else {
+        await apiCreateFeature(updatedFormData);
+      }
+    }
     if (isEdit) {
       setFeatures(prev => prev.map(f => f.id === updatedFormData.id ? updatedFormData : f));
       addAuditEvent('update', `Updated feature [${updatedFormData.id}] - ${updatedFormData.title}`);
-      // Sync to DB
-      try { await apiUpdateFeature(updatedFormData.id, updatedFormData); } catch { /* local fallback */ }
     } else {
       setFeatures(prev => [...prev, updatedFormData]);
       addAuditEvent('create', `Created new feature [${updatedFormData.id}] - ${updatedFormData.title}`);
-      // Sync to DB
-      try { await apiCreateFeature(updatedFormData); } catch { /* local fallback */ }
     }
     runAutomationRules(updatedFormData, previousFeature);
-  }, [features, addAuditEvent, runAutomationRules]);
+  }, [features, addAuditEvent, runAutomationRules, backendStatus]);
 
   const deleteFeature = useCallback(async (id) => {
-    if (window.confirm("Are you sure you want to delete this feature? This action cannot be undone.")) {
-      setFeatures(prev => prev.filter(f => f.id !== id));
-      addAuditEvent('delete', `Deleted feature [${id}]`);
-      setIsModalOpen(false);
-      setSelectedFeature(null);
-      // Sync to DB
-      try { await deleteFeatureApi(id); } catch { /* local fallback */ }
+    if (!window.confirm("Are you sure you want to delete this feature? This action cannot be undone.")) {
+      return;
     }
-  }, [addAuditEvent]);
+    if (backendStatus) {
+      try {
+        await deleteFeatureApi(id);
+      } catch (e) {
+        const msg = String(e?.message || 'Failed to delete feature.');
+        if (import.meta.env.DEV) {
+          console.error('deleteFeature API failed', e);
+        }
+        addNotification('system', `Delete failed: ${msg}`);
+        throw e;
+      }
+    }
+    setFeatures(prev => prev.filter(f => f.id !== id));
+    addAuditEvent('delete', `Deleted feature [${id}]`);
+    setIsModalOpen(false);
+    setSelectedFeature(null);
+  }, [addAuditEvent, backendStatus, addNotification]);
 
   const resolveRisk = useCallback((id) => {
     if (window.confirm("Override AI evaluation and force approve?")) {

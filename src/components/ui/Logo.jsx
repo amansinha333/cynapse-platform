@@ -97,7 +97,7 @@ export default function Logo({
     );
   }
 
-  const outerGap = compact ? 'gap-0' : 'gap-0 sm:gap-px';
+  const outerGap = 'gap-0';
   const wordGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
   const cynapseText = compact
     ? `text-[10px] font-extrabold tracking-wide sm:text-[11px] ${cynapseCls}`
@@ -114,7 +114,9 @@ export default function Logo({
     >
       {mark}
       <span
-        className={`relative z-10 flex w-full shrink-0 flex-row flex-nowrap items-baseline whitespace-nowrap font-sans leading-none ${wordGap} ${wordRowJustify}`}
+        className={`relative z-10 flex w-full shrink-0 flex-row flex-nowrap items-baseline whitespace-nowrap font-sans leading-none ${wordGap} ${wordRowJustify}${
+          compact ? '' : ' -mt-1 sm:-mt-1.5'
+        }`}
       >
         <span className={`${cynapseText} leading-none`}>CYNAPSE</span>
         {enterprise && <span className={`${enterpriseText} leading-none`}>ENTERPRISE</span>}

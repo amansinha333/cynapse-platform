@@ -30,7 +30,9 @@ export const extractPdfText = async (file) => {
     }
     return text;
   } catch (err) {
-    console.error("Failed to parse PDF:", err);
+    if (import.meta.env.DEV) {
+      console.error('Failed to parse PDF:', err);
+    }
     return "[Error parsing PDF content]";
   }
 };

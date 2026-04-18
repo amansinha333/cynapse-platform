@@ -40,3 +40,17 @@ venv
 __pycache__/
 *.py[cod]
 *.db
+
+# Local debug / one-off scripts (keep out of repo)
+debug_output.txt
+debug_output2.txt
+debug_output*.txt
+debug_glb.py
+debug_*.py
+print_glb.cjs
+dump_hierarchy.mjs
+backend/tmp_smoke_phase4/
+
+# Playwright
+/test-results/
+/playwright-report/

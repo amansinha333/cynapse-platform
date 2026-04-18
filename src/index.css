@@ -244,7 +244,7 @@ body.cyn-premium-cursor-active select {
 
 /* ───── Animated Gradient Text ───── */
 .gradient-text {
-  background: linear-gradient(135deg, #24389c, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #047857, #22c55e, #34d399);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

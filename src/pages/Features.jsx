@@ -3,22 +3,23 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BarChart3, Gavel, ArrowRight, CheckCircle2 } from "lucide-react";
 import Logo, { LOGO_CLASS } from "../components/ui/Logo";
+import { MARKETING_PAGE, MARKETING_HEADER, MARKETING_HEADER_INNER } from "../theme/marketing";
 
 export default function Features() {
   return (
-    <div className="min-h-screen bg-[#042417] text-slate-100">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#042417]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <div className={MARKETING_PAGE}>
+      <header className={MARKETING_HEADER}>
+        <div className={MARKETING_HEADER_INNER}>
           <Link to="/" className="flex shrink-0 items-center hover:opacity-90" aria-label="Cynapse home">
-            <Logo className={LOGO_CLASS.marketing} variant="dark" />
+            <Logo className={LOGO_CLASS.marketing} />
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/about" className="hidden text-sm font-semibold text-slate-400 hover:text-white sm:inline">
+            <Link to="/about" className="hidden text-sm font-semibold text-slate-600 hover:text-[#22c55e] sm:inline">
               About
             </Link>
             <Link
               to="/"
-              className="rounded-full bg-[#22c55e] px-5 py-2 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 transition-colors hover:bg-[#16a34a]"
+              className="rounded-full bg-[#22c55e] px-5 py-2 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-colors hover:bg-[#16a34a]"
             >
               Back to home
             </Link>
@@ -26,8 +27,8 @@ export default function Features() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden border-b border-white/10">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#115e49]/40 via-[#042417] to-[#042417]" />
+      <section className="relative overflow-hidden border-b border-slate-200">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-50/95 via-white to-slate-50" />
         <div className="relative mx-auto max-w-6xl px-6 py-20 md:py-24">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -35,9 +36,9 @@ export default function Features() {
             transition={{ duration: 0.45 }}
             className="max-w-3xl"
           >
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-emerald-400/90">Platform capabilities</p>
-            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">Built for objective prioritization and defensible compliance</h1>
-            <p className="mt-6 text-lg text-slate-300">
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">Platform capabilities</p>
+            <h1 className="text-4xl font-bold tracking-tight text-[#042f1f] md:text-5xl">Built for objective prioritization and defensible compliance</h1>
+            <p className="mt-6 text-lg text-slate-600">
               Cynapse unifies discovery, RICE scoring, and regulatory gates so enterprise teams ship faster—without sacrificing auditability.
             </p>
           </motion.div>
@@ -51,17 +52,17 @@ export default function Features() {
           viewport={{ once: true }}
           className="grid gap-10 lg:grid-cols-2 lg:items-center"
         >
-          <div className="rounded-2xl border border-white/10 bg-[#0a3f31]/50 p-8 md:p-10">
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-[#22c55e]/15 text-[#22c55e]">
+          <div className="rounded-2xl border border-emerald-100 bg-white p-8 shadow-sm md:p-10">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-[#22c55e]">
               <BarChart3 className="h-7 w-7" strokeWidth={1.75} />
             </div>
-            <h2 className="text-2xl font-bold text-white md:text-3xl">RICE prioritization engine</h2>
-            <p className="mt-4 text-slate-300 leading-relaxed">
-              Move from opinion-based roadmaps to <strong className="text-white">objective product mapping</strong>. Reach, Impact,
+            <h2 className="text-2xl font-bold text-[#042f1f] md:text-3xl">RICE prioritization engine</h2>
+            <p className="mt-4 text-slate-600 leading-relaxed">
+              Move from opinion-based roadmaps to <strong className="text-[#042f1f]">objective product mapping</strong>. Reach, Impact,
               Confidence, and Effort are captured in one system of record so product, engineering, and governance teams align on the same
               numbers—not slide decks that diverge after every meeting.
             </p>
-            <ul className="mt-6 space-y-3 text-slate-300">
+            <ul className="mt-6 space-y-3 text-slate-600">
               <li className="flex gap-3">
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                 <span>Comparable scores across initiatives for fair trade-off conversations.</span>
@@ -72,7 +73,7 @@ export default function Features() {
               </li>
             </ul>
           </div>
-          <div className="space-y-4 text-sm leading-relaxed text-slate-400">
+          <div className="space-y-4 text-sm leading-relaxed text-slate-600">
             <p>
               RICE in Cynapse is not a spreadsheet export—it is embedded in how work is represented. That means when leadership asks why
               one bet was funded over another, the answer is traceable to documented assumptions and scores, not memory.
@@ -86,23 +87,23 @@ export default function Features() {
           viewport={{ once: true }}
           className="grid gap-10 lg:grid-cols-2 lg:items-center"
         >
-          <div className="order-2 space-y-4 text-sm leading-relaxed text-slate-400 lg:order-1">
+          <div className="order-2 space-y-4 text-sm leading-relaxed text-slate-600 lg:order-1">
             <p>
               Ideation stays fast. The compliance bar rises when risk rises—at the moment you approach production. That separation protects
               velocity in discovery while preserving non-negotiable controls before customers are impacted.
             </p>
           </div>
-          <div className="order-1 rounded-2xl border border-white/10 bg-[#0a3f31]/50 p-8 md:p-10 lg:order-2">
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-[#22c55e]/15 text-[#22c55e]">
+          <div className="order-1 rounded-2xl border border-emerald-100 bg-white p-8 shadow-sm md:p-10 lg:order-2">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-[#22c55e]">
               <Gavel className="h-7 w-7" strokeWidth={1.75} />
             </div>
-            <h2 className="text-2xl font-bold text-white md:text-3xl">Hard-gate compliance governance</h2>
-            <p className="mt-4 text-slate-300 leading-relaxed">
-              Regulatory and policy checks are <strong className="text-white">enforced strictly before the deployment phase</strong>—not as
+            <h2 className="text-2xl font-bold text-[#042f1f] md:text-3xl">Hard-gate compliance governance</h2>
+            <p className="mt-4 text-slate-600 leading-relaxed">
+              Regulatory and policy checks are <strong className="text-[#042f1f]">enforced strictly before the deployment phase</strong>—not as
               a late manual review. Features that fail governed criteria remain visibly blocked so engineering capacity is not spent on work
               that cannot ship safely.
             </p>
-            <ul className="mt-6 space-y-3 text-slate-300">
+            <ul className="mt-6 space-y-3 text-slate-600">
               <li className="flex gap-3">
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                 <span>Gates align with your internal policies and uploaded regulatory corpora.</span>
@@ -118,13 +119,13 @@ export default function Features() {
         <div className="flex flex-wrap justify-center gap-4 pb-8">
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full bg-[#22c55e] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/40 transition-colors hover:bg-[#16a34a]"
+            className="inline-flex items-center gap-2 rounded-full bg-[#22c55e] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/25 transition-colors hover:bg-[#16a34a]"
           >
             Open the app <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             to="/security"
-            className="inline-flex items-center rounded-full border border-white/15 px-6 py-3 text-sm font-bold text-white/90 transition-colors hover:border-white/30 hover:bg-white/5"
+            className="inline-flex items-center rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-[#042f1f] transition-colors hover:border-emerald-300 hover:bg-emerald-50"
           >
             Security overview
           </Link>

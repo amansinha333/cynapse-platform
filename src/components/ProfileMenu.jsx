@@ -3,6 +3,22 @@ import { ChevronDown, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 
+function ProfileMenuRow({ icon: Icon, label, onClick, trailing }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sm flex items-center justify-between"
+    >
+      <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+        <Icon size={15} />
+        {label}
+      </span>
+      {trailing}
+    </button>
+  );
+}
+
 export default function ProfileMenu() {
   const { currentUser, isDarkMode, setIsDarkMode, handleLogout } = useProject();
   const [open, setOpen] = useState(false);
@@ -24,19 +40,6 @@ export default function ProfileMenu() {
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'AS';
   const email = currentUser?.email || 'aman@cynapse.io';
-
-  const Row = ({ icon: Icon, label, onClick, trailing }) => (
-    <button
-      onClick={onClick}
-      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sm flex items-center justify-between"
-    >
-      <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-        <Icon size={15} />
-        {label}
-      </span>
-      {trailing}
-    </button>
-  );
 
   return (
     <div className="relative" ref={menuRef}>
@@ -65,17 +68,17 @@ export default function ProfileMenu() {
             </div>
           </div>
 
-          <Row icon={User} label="My Profile" onClick={() => { setOpen(false); navigate('/dashboard/profile'); }} />
-          <Row icon={Settings} label="Personal Settings" onClick={() => { setOpen(false); navigate('/dashboard/account?context=personal&tab=general'); }} />
-          <Row icon={Settings} label="Workspace Settings" onClick={() => { setOpen(false); navigate('/dashboard/account?context=admin&tab=system'); }} />
-          <Row icon={Settings} label="Billing & Subscriptions" onClick={() => { setOpen(false); navigate('/dashboard/account?context=billing&tab=billing'); }} />
-          <Row
+          <ProfileMenuRow icon={User} label="My Profile" onClick={() => { setOpen(false); navigate('/dashboard/profile'); }} />
+          <ProfileMenuRow icon={Settings} label="Personal Settings" onClick={() => { setOpen(false); navigate('/dashboard/account?context=personal&tab=general'); }} />
+          <ProfileMenuRow icon={Settings} label="Workspace Settings" onClick={() => { setOpen(false); navigate('/dashboard/account?context=admin&tab=system'); }} />
+          <ProfileMenuRow icon={Settings} label="Billing & Subscriptions" onClick={() => { setOpen(false); navigate('/dashboard/account?context=billing&tab=billing'); }} />
+          <ProfileMenuRow
             icon={isDarkMode ? Sun : Moon}
             label={`Dark Mode: ${isDarkMode ? 'On' : 'Off'}`}
             onClick={() => setIsDarkMode(!isDarkMode)}
             trailing={<span className="text-[10px] text-slate-500">{isDarkMode ? 'Switch to light' : 'Switch to dark'}</span>}
           />
-          <Row
+          <ProfileMenuRow
             icon={LogOut}
             label="Log out"
             onClick={() => { setOpen(false); handleLogout(); }}

@@ -16,7 +16,6 @@ function DonutChart({ segments, size = 120, strokeWidth = 14 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const total = segments.reduce((a, s) => a + s.value, 0);
-  let offset = 0;
 
   return (
     <svg ref={ref} width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -25,8 +24,8 @@ function DonutChart({ segments, size = 120, strokeWidth = 14 }) {
         const pct = total > 0 ? seg.value / total : 0;
         const dash = pct * circumference;
         const gap = circumference - dash;
-        const rotation = (offset / total) * 360;
-        offset += seg.value;
+        const startOffset = segments.slice(0, i).reduce((a, s) => a + s.value, 0);
+        const rotation = total > 0 ? (startOffset / total) * 360 : 0;
         return (
           <motion.circle
             key={i}

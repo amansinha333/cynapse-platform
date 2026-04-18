@@ -12,6 +12,32 @@ const REFRESH_TOKEN_KEY = 'cynapse_refresh_token';
 /** Dispatched when refresh fails after 401 so ProjectProvider can clear session (avoid infinite API loops). */
 export const AUTH_LOGOUT_EVENT = 'cynapse-auth-logout';
 
+function messageFromFastApiDetail(detail) {
+  if (detail == null) return '';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d) => (typeof d === 'object' && d != null && d.msg ? d.msg : String(d)))
+      .join(' ')
+      .trim();
+  }
+  if (typeof detail === 'object') {
+    if (typeof detail.error === 'string') {
+      const extra = detail.reason ?? detail.message;
+      if (extra != null && extra !== '') {
+        return typeof extra === 'string' ? `${detail.error}: ${extra}` : `${detail.error}: ${JSON.stringify(extra)}`;
+      }
+      return detail.error;
+    }
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return String(detail);
+    }
+  }
+  return String(detail);
+}
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -42,7 +68,20 @@ async function request(path, options = {}) {
       }
     }
     const errBody = await res.text().catch(() => '');
-    throw new Error(errBody || `API Error ${res.status} on ${options.method || 'GET'} ${path}`);
+    const fallback = errBody || `API Error ${res.status} on ${options.method || 'GET'} ${path}`;
+    let message = fallback;
+    if (errBody) {
+      try {
+        const parsed = JSON.parse(errBody);
+        if (parsed != null && Object.prototype.hasOwnProperty.call(parsed, 'detail')) {
+          const extracted = messageFromFastApiDetail(parsed.detail);
+          if (extracted) message = extracted;
+        }
+      } catch {
+        /* keep raw errBody as message */
+      }
+    }
+    throw new Error(message);
   }
   return res.json();
 }
@@ -137,26 +176,24 @@ export const createAuditEvent = (data) => request('/api/audit-log', { method: 'P
 // ---------------------------------------------------------------------------
 // AI AUDIT ENDPOINTS — Real Gemini Integration
 // ---------------------------------------------------------------------------
-export const analyzeRiceCore = async (payload, keys = {}) => {
+/** Gemini keys are resolved server-side (GEMINI_API_KEY or encrypted user key). Do not send client keys. */
+export const analyzeRiceCore = async (payload, _keys = {}) => {
   return request('/api/v1/analyze-rice', {
     method: 'POST',
-    headers: { 'X-Gemini-Key': keys.gemini || '' },
     body: JSON.stringify(payload),
   });
 };
 
-export const runNode1 = async (payload, keys = {}) => {
+export const runNode1 = async (payload, _keys = {}) => {
   try {
     return await request('/api/audit/node1', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    // Backward-compatible fallback if backend still exposes legacy v1 path.
     if (String(error?.message || '').includes('404')) {
       return request('/api/v1/audit/node1', {
         method: 'POST',
-        headers: { 'X-Gemini-Key': keys.gemini || '' },
         body: JSON.stringify({
           title: payload?.project_description || '',
           description: payload?.project_description || '',
@@ -168,18 +205,16 @@ export const runNode1 = async (payload, keys = {}) => {
   }
 };
 
-export const runNode2 = async (payload, keys = {}) => {
+export const runNode2 = async (payload, _keys = {}) => {
   try {
     return await request('/api/audit/node2', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    // Backward-compatible fallback if backend still exposes legacy v1 path.
     if (String(error?.message || '').includes('404')) {
       return request('/api/v1/audit/node2', {
         method: 'POST',
-        headers: { 'X-Gemini-Key': keys.gemini || '' },
         body: JSON.stringify({
           title: payload?.project_description || '',
           description: payload?.project_description || '',
@@ -189,16 +224,6 @@ export const runNode2 = async (payload, keys = {}) => {
     }
     throw error;
   }
-};
-
-export const runMultiNodeAudit = async (payload, keys = {}) => {
-  return request('/api/v1/run-audit', {
-    method: 'POST',
-    headers: {
-      'X-Gemini-Key': keys.gemini || '',
-    },
-    body: JSON.stringify(payload),
-  });
 };
 
 // ---------------------------------------------------------------------------
@@ -207,6 +232,10 @@ export const runMultiNodeAudit = async (payload, keys = {}) => {
 export const registerUser = (data) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) });
 export const loginUser = (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) });
 export const fetchCurrentUser = () => request('/api/users/me');
+export const fetchMyDataExport = () => request('/api/users/me/data-export');
+export const fetchPrivacySettings = () => request('/api/users/me/privacy-settings');
+export const deleteMyAccount = (password) =>
+  request('/api/users/me/delete-account', { method: 'POST', body: JSON.stringify({ password }) });
 export const fetchUsers = () => request('/api/users');
 export const updateMyProfile = (formData) => request('/api/users/me', { method: 'PUT', body: formData });
 export const updateUserRole = (userId, role) => request(`/api/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
@@ -233,21 +262,83 @@ export const createCheckoutSession = (planTier) =>
 // ---------------------------------------------------------------------------
 // VAULT
 // ---------------------------------------------------------------------------
-export const uploadVaultDocument = async (formData) => {
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Poll Celery ingest task until SUCCESS or FAILURE (used when API returns 202 + task_id). */
+export const fetchVaultIngestTaskStatus = async (taskId) => {
   const token = localStorage.getItem(TOKEN_KEY);
-  const res = await fetch(`${API_BASE}/api/vault/upload`, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
+  const res = await fetch(`${API_BASE}/api/vault/tasks/${encodeURIComponent(taskId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(err || 'Upload failed');
+    throw new Error(err || 'Task status failed');
   }
   return res.json();
 };
+
+/**
+ * Upload a vault PDF. If the server returns `task_id` (Celery / REDIS_URL), polls until processing finishes.
+ * @param {FormData} formData
+ * @param {{
+ *   poll?: boolean,
+ *   pollIntervalMs?: number,
+ *   pollTimeoutMs?: number,
+ *   onPhase?: (phase: 'uploading' | 'analyzing' | 'idle') => void
+ * }} [options]
+ */
+export const uploadVaultDocument = async (formData, options = {}) => {
+  const {
+    poll = true,
+    pollIntervalMs = 3000,
+    pollTimeoutMs = 45 * 60 * 1000,
+    onPhase
+  } = options;
+
+  const run = async () => {
+    onPhase?.('uploading');
+    const token = localStorage.getItem(TOKEN_KEY);
+    const res = await fetch(`${API_BASE}/api/vault/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || 'Upload failed');
+    }
+    const data = await res.json();
+    if (!poll || !data.task_id) {
+      return data;
+    }
+
+    onPhase?.('analyzing');
+    const start = Date.now();
+    while (Date.now() - start < pollTimeoutMs) {
+      const status = await fetchVaultIngestTaskStatus(data.task_id);
+      const state = status.state || '';
+      if (state === 'SUCCESS') {
+        return { ...data, ingest_task: status };
+      }
+      if (state === 'FAILURE' || state === 'REVOKED') {
+        const msg = status.error || `Ingest failed (${state})`;
+        throw new Error(msg);
+      }
+      await sleep(pollIntervalMs);
+    }
+    throw new Error('Document processing timed out — check the Knowledge Vault or try again.');
+  };
+
+  try {
+    return await run();
+  } finally {
+    onPhase?.('idle');
+  }
+};
+
 export const fetchVaultDocuments = () => request('/api/vault/documents');
 export const fetchVaultDocumentUrl = (documentId) => request(`/api/vault/documents/${documentId}/url`);
 export const deleteVaultDocument = (documentId) => request(`/api/vault/${documentId}`, { method: 'DELETE' });

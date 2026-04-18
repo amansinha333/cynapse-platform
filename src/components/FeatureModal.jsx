@@ -24,7 +24,7 @@ export default function FeatureModal() {
   const {
     selectedFeature, closeModal: onClose, isModalOpen,
     handleFeatureSave: onSave, deleteFeature: onDelete,
-    currentUser, backendStatus, backendUrl, apiKeys,
+    currentUser, backendStatus, apiKeys,
     aiModel, customDocs, epics, features: allFeatures,
     users, vendors, resetForm,
   } = useProject();
@@ -45,6 +45,8 @@ export default function FeatureModal() {
   const [isNode2Running, setIsNode2Running] = useState(false);
   const [auditVerdict, setAuditVerdict] = useState(null);
   const [agentError, setAgentError] = useState('');
+  const [featureSaveError, setFeatureSaveError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const [liveLog, setLiveLog] = useState([]);
   
@@ -59,6 +61,8 @@ export default function FeatureModal() {
   React.useEffect(() => {
     setFormData(initialFormData);
     setAgentError('');
+    setFeatureSaveError('');
+    setDeleteError('');
     setActiveTab('prd');
   }, [initialFormData]);
 
@@ -94,33 +98,29 @@ export default function FeatureModal() {
   };
 
   const saveFeature = async () => {
+    setFeatureSaveError('');
     const rice = calculateRice(formData.reach, formData.impact, formData.confidence, formData.effort);
     const featureId = selectedFeature ? selectedFeature.id : `CYN-${Date.now()}`;
     const updatedFormData = { ...formData, id: featureId, riceScore: rice };
-    onSave(updatedFormData, !!selectedFeature);
-
-    if (backendStatus) {
-      try {
-        await fetch(`${BACKEND_URL}/api/features`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: featureId, title: updatedFormData.title || 'Untitled',
-            description: updatedFormData.description || 'No desc',
-            region: updatedFormData.region || 'Global', industry: updatedFormData.industry || 'General',
-            status: updatedFormData.status || 'Discovery',
-            rice_score: parseFloat(rice), compliance_status: updatedFormData.complianceStatus || 'Pending'
-          })
-        });
-      } catch (e) { console.error("Database sync failed", e); }
+    try {
+      await onSave(updatedFormData, !!selectedFeature);
+    } catch (e) {
+      const raw = String(e?.message || e || '');
+      const msg = raw.length > 400 ? 'Failed to save feature. Please try again.' : (raw || 'Failed to save feature. Please try again.');
+      setFeatureSaveError(msg);
+      throw e;
     }
     return updatedFormData;
   };
 
   const saveAndClose = async () => {
-    addHistoryEntry('Feature saved', `${currentUser?.name || 'User'} saved changes to this feature.`);
-    await saveFeature();
-    onClose();
+    try {
+      addHistoryEntry('Feature saved', `${currentUser?.name || 'User'} saved changes to this feature.`);
+      await saveFeature();
+      onClose();
+    } catch {
+      /* featureSaveError already set in saveFeature */
+    }
   };
 
   // --- Comments ---
@@ -243,7 +243,13 @@ export default function FeatureModal() {
     setAgentError('');
     setLiveLog(['[SYS] Connecting to Compliance Engine...', '[Node 1] Synchronizing with Pinecone DB...']);
     addHistoryEntry('Node 1 Audit initiated', 'Checking internal policies and third-party vendor risks.');
-    await saveFeature();
+    try {
+      await saveFeature();
+    } catch {
+      setIsNode1Running(false);
+      setTimeout(() => setLiveLog([]), 3000);
+      return;
+    }
 
     try {
       setLiveLog(prev => [...prev, '[Node 1] Awaiting API response from localhost:8000...']);
@@ -288,7 +294,13 @@ export default function FeatureModal() {
     setAgentError('');
     setLiveLog(['[SYS] Connecting to Compliance Engine...', '[Node 2] Initiating SerpAPI Web Intel...']);
     addHistoryEntry('Node 2 Audit initiated', 'System started global regulatory sentiment check.');
-    await saveFeature();
+    try {
+      await saveFeature();
+    } catch {
+      setIsNode2Running(false);
+      setTimeout(() => setLiveLog([]), 3000);
+      return;
+    }
 
     const logInterval = setInterval(() => {
       setLiveLog(prev => {
@@ -491,6 +503,12 @@ export default function FeatureModal() {
         <div className="px-8 pt-6 pb-2 shrink-0">
           <input type="text" name="title" value={formData.title || ''} onChange={handleInputChange} className="w-full text-2xl font-semibold outline-none bg-transparent text-slate-900 dark:text-white" placeholder="Initiative Summary" />
         </div>
+
+        {featureSaveError && (
+          <div className="mx-8 mt-3 shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200" role="alert">
+            {featureSaveError}
+          </div>
+        )}
 
         {/* Tab Bar */}
         <div className="px-8 border-b border-slate-200 dark:border-slate-800 flex gap-1 shrink-0">
@@ -1018,11 +1036,25 @@ export default function FeatureModal() {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col gap-2 shrink-0">
+          {deleteError ? (
+            <p className="text-xs font-medium text-red-600 dark:text-red-400" role="alert">
+              {deleteError}
+            </p>
+          ) : null}
+          <div className="flex justify-between items-center">
           <div>
             {selectedFeature && currentUser?.role !== 'Engineer' && (
               <button 
-                onClick={() => onDelete(selectedFeature.id)} 
+                type="button"
+                onClick={async () => {
+                  setDeleteError('');
+                  try {
+                    await onDelete(selectedFeature.id);
+                  } catch (e) {
+                    setDeleteError(String(e?.message || 'Could not delete this feature. Please try again.'));
+                  }
+                }} 
                 className="px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors flex items-center gap-2"
               >
                 <Trash2 size={16} /> Delete
@@ -1040,6 +1072,7 @@ export default function FeatureModal() {
             {currentUser?.role !== 'Engineer' && (
               <button onClick={saveAndClose} className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 dark:bg-indigo-500 rounded shadow-sm hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors">Save Changes</button>
             )}
+          </div>
           </div>
         </div>
       </motion.div>

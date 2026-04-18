@@ -320,7 +320,11 @@ export default function EnterpriseSettings() {
             </div>
             <div className="border rounded-xl p-4 bg-slate-50 dark:bg-slate-800/40">
               <p className="text-xs uppercase tracking-wide text-slate-500">SSO</p>
-              <p className="font-bold mt-1">Enforced (Okta)</p>
+              <p className="font-bold mt-1">OpenID Connect</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure <code className="text-[11px]">OIDC_ISSUER</code>, client ID/secret, and callback on the API. SCIM discovery:{' '}
+                <code className="text-[11px]">/api/scim/v2/ServiceProviderConfig</code>.
+              </p>
             </div>
             <div className="border rounded-xl p-4 bg-slate-50 dark:bg-slate-800/40">
               <p className="text-xs uppercase tracking-wide text-slate-500">Session Timeout</p>

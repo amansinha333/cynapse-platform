@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { X, Mail, Shield, User, Users } from "lucide-react";
 import { useProject } from "../../context/ProjectContext";
 
+const TOKEN_KEY = "cynapse_jwt_token";
+
 const ROLES = [
   { value: "admin", label: "Admin", icon: Shield },
   { value: "manager", label: "Manager", icon: Users },
@@ -25,9 +27,13 @@ export default function InviteModal({ open, onClose }) {
     setLoading(true);
     try {
       if (!organizationId) throw new Error("Missing organization/workspace id.");
+      const token = localStorage.getItem(TOKEN_KEY);
       const res = await fetch(`${backendUrl}/api/invites/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ email, organization_id: organizationId, role }),
       });
       const body = await res.json().catch(() => ({}));

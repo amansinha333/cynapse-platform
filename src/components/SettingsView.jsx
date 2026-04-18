@@ -7,6 +7,8 @@ import { extractPdfText } from '../utils/pdf';
 import { useProject } from '../context/ProjectContext';
 import InviteModal from './dashboard/InviteModal';
 
+const TOKEN_KEY = 'cynapse_jwt_token';
+
 export default function SettingsView() {
   const {
     globalApiKey: apiKey, setGlobalApiKey: setApiKey,
@@ -35,7 +37,16 @@ export default function SettingsView() {
         for (let i = 0; i < files.length; i++) {
           const formData = new FormData();
           formData.append("file", files[i]);
-          await fetch(`${backendUrl}/api/upload`, { method: 'POST', body: formData });
+          const token = localStorage.getItem(TOKEN_KEY);
+          const res = await fetch(`${backendUrl}/api/vault/upload`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => '');
+            throw new Error(errText || `Upload failed (${res.status})`);
+          }
         }
         setUploadStatus('Successfully synced and embedded into Enterprise RAG.');
         setUploadedFiles(prev => {
@@ -43,7 +54,9 @@ export default function SettingsView() {
           return [...new Set([...prev, ...newFiles])];
         });
       } catch (err) {
-        console.error("Backend upload failed", err);
+        if (import.meta.env.DEV) {
+          console.error("Backend upload failed", err);
+        }
         setUploadStatus('Upload failed. Check Python server connection.');
       }
       setTimeout(() => setIsUploading(false), 2000);
@@ -62,7 +75,11 @@ export default function SettingsView() {
           text = await files[i].text();
         }
         combinedText += `\n--- SOURCE: ${files[i].name} ---\n${text}\n`;
-      } catch (err) { console.error(`Error reading ${files[i].name}`, err); }
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error(`Error reading ${files[i].name}`, err);
+        }
+      }
     }
     if (combinedText.length > 3000000) combinedText = combinedText.substring(0, 3000000);
     setCustomDocs(combinedText);
@@ -153,7 +170,7 @@ export default function SettingsView() {
             <p className="text-sm font-semibold">{isUploading ? 'Ingesting...' : 'Click to upload bulk compliance documents'}</p>
             <p className="text-xs text-indigo-500 dark:text-indigo-400/70 mt-1">Supports .pdf, .txt</p>
           </div>
-          <input type="file" multiple accept=".pdf,.txt" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+          <input type="file" multiple accept=".pdf" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
         </label>
 
         {uploadStatus && <div className="text-xs font-bold text-indigo-600 dark:text-indigo-300 mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded animate-pulse text-center">{uploadStatus}</div>}

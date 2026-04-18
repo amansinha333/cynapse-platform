@@ -12,6 +12,7 @@ import MagneticButton from "../components/ui/MagneticButton";
 import IsolatedHero3D from "../components/3d/IsolatedHero3D";
 import BrandedLoader from "../components/ui/BrandedLoader";
 import Logo, { LOGO_CLASS } from "../components/ui/Logo";
+import { STATUS_PAGE_URL, SECURITY_EMAIL } from "../config/enterprise";
 
 export default function LandingPage() {
   const [activeTab, setActiveTab] = useState(0);
@@ -111,7 +112,7 @@ export default function LandingPage() {
 
       <div
         style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.6s ease-out" }}
-        className="min-h-screen bg-white text-[#042f1f] font-sans overflow-x-hidden pb-4"
+        className="min-h-screen bg-white text-[#042f1f] font-sans antialiased overflow-x-hidden pb-4"
       >
 
       {/* --- 1. FLOATING NAVIGATION --- */}
@@ -120,15 +121,11 @@ export default function LandingPage() {
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] px-6 py-1.5 h-[64px] flex items-center justify-between max-w-[1300px] mx-auto pointer-events-auto border border-slate-100"
+          className="bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] px-6 py-2 min-h-[56px] flex items-center justify-between max-w-[1300px] mx-auto pointer-events-auto border border-slate-100"
         >
           <div className="flex items-center gap-10">
-            <a href="/" className="flex flex-col items-center shrink-0 py-0.5" aria-label="Cynapse home">
-              <img src="/cynapse-logo.png?v=2" alt="" aria-hidden draggable={false} decoding="async" className="h-[40px] w-auto object-contain object-top" />
-              <span className="flex items-baseline justify-center gap-[2px] whitespace-nowrap leading-none font-sans -mt-[1px]">
-                <span className="text-[7px] font-extrabold tracking-[0.04em] text-emerald-900">CYNAPSE</span>
-                <span className="text-[5.5px] font-semibold tracking-[0.1em] text-slate-500">ENTERPRISE</span>
-              </span>
+            <a href="/" className="flex shrink-0 items-center" aria-label="Cynapse home">
+              <Logo className={LOGO_CLASS.marketing} />
             </a>
 
             <div className="hidden md:flex items-center gap-2 lg:gap-4 text-[13px] lg:text-[14px] font-semibold text-[#042f1f]">
@@ -932,13 +929,28 @@ export default function LandingPage() {
                 <Logo className={LOGO_CLASS.marketing} variant="dark" />
               </a>
 
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max">
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">All systems operational</span>
-              </div>
+              {STATUS_PAGE_URL ? (
+                <a
+                  href={STATUS_PAGE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max hover:bg-white/10 transition-colors"
+                >
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">System status (external)</span>
+                </a>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-max">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Set VITE_STATUS_PAGE_URL for public uptime</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14 xl:gap-20">
@@ -977,6 +989,12 @@ export default function LandingPage() {
                 <Link to="/terms" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
                   Terms
                 </Link>
+                <Link to="/subprocessors" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  Subprocessors
+                </Link>
+                <Link to="/dpa" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                  DPA
+                </Link>
               </div>
             </div>
           </div>
@@ -990,6 +1008,9 @@ export default function LandingPage() {
               <Link to="/data-processing" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
                 Data Processing
               </Link>
+              <a href={`mailto:${SECURITY_EMAIL}`} className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
+                Security ({SECURITY_EMAIL})
+              </a>
               <a href="mailto:hello@cynapse.com" className="text-white hover:text-[#22c55e] font-semibold text-[14px] transition-colors">
                 Contact
               </a>

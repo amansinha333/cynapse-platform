@@ -18,7 +18,9 @@ if (localStorage.getItem("cynapse_cookie_consent") !== "declined" && import.meta
       api_host: import.meta.env.VITE_POSTHOG_HOST || "https://app.posthog.com",
     })
   } catch (e) {
-    console.warn("PostHog init skipped:", e)
+    if (import.meta.env.DEV) {
+      console.warn("PostHog init skipped:", e)
+    }
   }
 }
 // ---------------------------------------

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Lock, Zap } from "lucide-react";
 import { useProject } from "../context/ProjectContext";
 
+const TOKEN_KEY = "cynapse_jwt_token";
+
 function Card({ children, className = "" }) {
   return (
     <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
@@ -26,9 +28,13 @@ export default function BillingPage() {
       if (!organizationId) {
         throw new Error("Missing organization/workspace id for checkout.");
       }
+      const token = localStorage.getItem(TOKEN_KEY);
       const res = await fetch(`${backendUrl}/api/billing/create-checkout-session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ organization_id: organizationId }),
       });
       const body = await res.json().catch(() => ({}));

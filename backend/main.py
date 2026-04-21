@@ -546,8 +546,8 @@ def _extract_first_json_object(text_value: str) -> dict:
 
 
 async def _gemini_json_gate(prompt: str, api_key: str) -> dict:
-    primary_model = os.getenv("AI_MODEL", "gemini-2.0-flash").strip()
-    candidate_models = [primary_model, "gemini-2.5-flash"]
+    primary_model = os.getenv("AI_MODEL", "gemini-2.5-flash").strip()
+    candidate_models = [primary_model, "gemini-2.0-flash"]
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -1093,7 +1093,7 @@ async def api_node1(
             industry=str(body.get("industry", "General")),
             api_key=api_key,
             custom_docs=custom_docs_str,
-            model_name=str(body.get("aiModel", os.getenv("AI_MODEL", "gemini-2.0-flash"))),
+            model_name=str(body.get("aiModel", os.getenv("AI_MODEL", "gemini-2.5-flash"))),
         )
         return result
     except Exception as e:
@@ -1152,7 +1152,7 @@ async def api_node2(
             industry=str(body.get("industry", "General")),
             api_key=api_key,
             custom_docs=custom_docs_str,
-            model_name=str(body.get("aiModel", os.getenv("AI_MODEL", "gemini-2.0-flash"))),
+            model_name=str(body.get("aiModel", os.getenv("AI_MODEL", "gemini-2.5-flash"))),
         )
         return result
     except Exception as e:
@@ -1207,7 +1207,7 @@ async def api_rice(
             region=str(body.get("region", "Global")),
             industry=str(body.get("industry", "General")),
             api_key=api_key,
-            model_name=str(body.get("aiModel", os.getenv("AI_MODEL", "gemini-2.0-flash"))),
+            model_name=str(body.get("aiModel", os.getenv("AI_MODEL", "gemini-2.5-flash"))),
         )
         return result
     except Exception as e:

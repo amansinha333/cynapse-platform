@@ -137,8 +137,8 @@ async def _gemini_conflict_check(new_chunk: str, existing_chunk: str) -> dict:
     api_key = (os.getenv("GEMINI_API_KEY", "") or "").strip()
     if not api_key:
         return {"has_conflict": False, "summary": "Gemini key missing; conflict check skipped"}
-    primary_model = os.getenv("AI_MODEL", "gemini-2.0-flash").strip()
-    candidate_models = [primary_model, "gemini-2.5-flash"]
+    primary_model = os.getenv("AI_MODEL", "gemini-2.5-flash").strip()
+    candidate_models = [primary_model, "gemini-2.0-flash"]
     prompt = (
         "Do these two regulatory passages semantically contradict each other? "
         "Return JSON: 'has_conflict': boolean, 'summary': string.\n\n"

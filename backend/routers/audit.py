@@ -244,7 +244,7 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         try:
             response = await _with_retry(
                 lambda: client.models.generate_content(
-                    model=os.getenv("AI_MODEL", "gemini-2.0-flash"),
+                    model=os.getenv("AI_MODEL", "gemini-2.5-flash"),
                     contents=prompt,
                     config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2),
                 )
@@ -316,7 +316,7 @@ async def node2_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         try:
             response = await _with_retry(
                 lambda: client.models.generate_content(
-                    model=os.getenv("AI_MODEL", "gemini-2.0-flash"),
+                    model=os.getenv("AI_MODEL", "gemini-2.5-flash"),
                     contents=prompt,
                     config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2),
                 )

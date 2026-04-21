@@ -352,13 +352,13 @@ This ensures that even if the SQLite database file is compromised, API keys are 
 
 ### 3.1 LLM Integration: Google Gemini
 
-#### 3.1.1 Model Selection: `gemini-2.0-flash`
+#### 3.1.1 Model Selection: `gemini-2.5-flash`
 
-The system defaults to `gemini-2.0-flash` as the primary generative model (configurable via `AI_MODEL` environment variable). This selection was driven by:
+The system defaults to `gemini-2.5-flash` as the primary generative model (configurable via `AI_MODEL` environment variable). This selection was driven by:
 
 1. **Latency:** Flash models are optimized for sub-second response times, critical for interactive audit workflows where product managers expect near-instant feedback.
 2. **Cost:** Flash-tier pricing is approximately 10x cheaper than Pro-tier models, making it viable for high-frequency audit operations across large backlogs.
-3. **Context Window:** Gemini 2.0 Flash supports a 1,048,576-token context window, sufficient to include both the feature PRD and multiple regulatory document chunks in a single prompt.
+3. **Context Window:** Gemini 2.5 Flash supports a large context window, sufficient to include both the feature PRD and multiple regulatory document chunks in a single prompt.
 4. **Structured Output:** The model reliably generates JSON responses when configured with `response_mime_type="application/json"`, eliminating the need for post-hoc parsing heuristics.
 
 The Gemini client is instantiated via the `google-genai` Python SDK:
@@ -369,7 +369,7 @@ from google.genai import types
 
 client = genai.Client(api_key=api_key)
 response = client.models.generate_content(
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     contents=prompt,
     config=types.GenerateContentConfig(
         system_instruction=system_instruction,
@@ -470,7 +470,7 @@ The Cynapse audit engine implements a **dual-track, multi-agent architecture** w
 2. A **Top-K=5 similarity search** is executed against the Pinecone index (`cynapse-compliance`).
 3. The top 5 matching regulatory text chunks are retrieved with their metadata.
 4. A structured prompt is constructed combining the feature description and the retrieved regulatory chunks.
-5. Gemini `gemini-2.0-flash` generates a compliance verdict in JSON format.
+5. Gemini `gemini-2.5-flash` generates a compliance verdict in JSON format.
 
 **Implementation** (`backend/routers/audit.py`):
 
@@ -1360,7 +1360,7 @@ cynapse-platform/
 | `AUDIT_RETRIEVAL_CACHE_TTL_SECONDS` | Backend | No | TTL for Node 1 retrieval cache |
 | `AI_PROMPT_PRD_CHARS`, `AI_PROMPT_CUSTOM_DOCS_CHARS`, `AI_PROMPT_WEB_INTEL_CHARS` | Backend | No | Prompt truncation budgets in `services/ai_service.py` |
 | `SEARCH_API_KEY` | Backend | No | SerpAPI key for Node 2 |
-| `AI_MODEL` | Backend | No | Gemini model (default: `gemini-2.0-flash`) |
+| `AI_MODEL` | Backend | No | Gemini model (default: `gemini-2.5-flash`) |
 | `GOOGLE_CLIENT_ID` | Backend | Yes | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Backend | Yes | Google OAuth client secret |
 | `FRONTEND_URL` | Backend | Yes | Frontend URL for OAuth redirects |

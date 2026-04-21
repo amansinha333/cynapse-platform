@@ -221,7 +221,7 @@ export default function FeatureModal() {
 
     try {
       setLiveLog(prev => [...prev, '[AI] Querying FastAPI backend...']);
-      const payload = { title: formData.title, description: formData.description, prdText: formData.prdHtml || formData.description, region: formData.region, industry: formData.industry, customDocs: customDocs || '', aiModel: aiModel || 'gemini-2.0-flash' };
+      const payload = { title: formData.title, description: formData.description, prdText: formData.prdHtml || formData.description, region: formData.region, industry: formData.industry, customDocs: customDocs || '', aiModel: aiModel || 'gemini-2.5-flash' };
       const response = await analyzeRiceCore(payload, apiKeys);
       setLiveLog(prev => [...prev, '[SYS] Scoring complete.']);
       const aiData = response.data || response || { reach: 0, impact: 0, confidence: 0, effort: 0 };

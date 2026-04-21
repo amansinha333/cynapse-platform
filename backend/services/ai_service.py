@@ -198,7 +198,7 @@ async def run_node1_analysis(
         raise ValueError("Gemini API key is required for AI audit. Configure it in Settings.")
 
     if not model_name:
-        model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
+        model_name = os.getenv("AI_MODEL", "gemini-2.5-flash")
 
     prompt = _build_prompt(title, description, prd_text, region, industry, custom_docs)
     result = await _generate_with_client(api_key, NODE1_SYSTEM_INSTRUCTION, model_name, prompt)
@@ -226,7 +226,7 @@ async def run_node2_analysis(
         raise ValueError("Gemini API key is required for AI audit. Configure it in Settings.")
 
     if not model_name:
-        model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
+        model_name = os.getenv("AI_MODEL", "gemini-2.5-flash")
 
     # Execute Web Intel Search (Node 2 unique step)
     web_intel = _get_web_intel(title, region)
@@ -258,7 +258,7 @@ async def run_rice_analysis(
         raise ValueError("Gemini API key is required for RICE analysis. Configure it in Settings.")
 
     if not model_name:
-        model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
+        model_name = os.getenv("AI_MODEL", "gemini-2.5-flash")
 
     prompt = _build_prompt(title, description, prd_text, region, industry)
     result = await _generate_with_client(api_key, RICE_SYSTEM_INSTRUCTION, model_name, prompt)

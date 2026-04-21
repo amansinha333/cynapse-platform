@@ -29,7 +29,7 @@ AI and retrieval (mandatory for enterprise audits):
 - `PINECONE_API_KEY`
 - `PINECONE_INDEX`
 - `SEARCH_API_KEY`
-- `AI_MODEL` (recommended: `gemini-2.0-flash`)
+- `AI_MODEL` (recommended: `gemini-2.5-flash`)
 
 Optional but recommended:
 

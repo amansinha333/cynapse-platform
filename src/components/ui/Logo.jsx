@@ -97,7 +97,8 @@ export default function Logo({
     );
   }
 
-  const outerGap = 'gap-0';
+  /** Space between 3D mark and “CYNAPSE ENTERPRISE” (was gap-0 + negative margin; slight gap reads clearer). */
+  const outerGap = compact ? 'gap-1' : 'gap-1.5 sm:gap-2';
   const wordGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
   const cynapseText = compact
     ? `text-[10px] font-extrabold tracking-wide sm:text-[11px] ${cynapseCls}`
@@ -114,9 +115,7 @@ export default function Logo({
     >
       {mark}
       <span
-        className={`relative z-10 flex w-full shrink-0 flex-row flex-nowrap items-baseline whitespace-nowrap font-sans leading-none ${wordGap} ${wordRowJustify}${
-          compact ? '' : ' -mt-1 sm:-mt-1.5'
-        }`}
+        className={`relative z-10 flex w-full shrink-0 flex-row flex-nowrap items-baseline whitespace-nowrap font-sans leading-none ${wordGap} ${wordRowJustify}`}
       >
         <span className={`${cynapseText} leading-none`}>CYNAPSE</span>
         {enterprise && <span className={`${enterpriseText} leading-none`}>ENTERPRISE</span>}

@@ -4,8 +4,8 @@
 
 **Document Classification:** Academic Research — System Architecture & Methodology
 **Author Role:** Lead Systems Architect (Forensic Audit)
-**Platform Version:** 3.4.1
-**Date of Audit:** March 25, 2026
+**Platform Version:** 3.5.0
+**Date of Audit:** April 19, 2026
 **Repository:** `cynapse-platform`
 
 ---
@@ -90,8 +90,11 @@ This ensures that the transition into engineering-active states is physically im
 | Icons | Lucide React | 0.562.0 | Tree-shakeable SVG icon library |
 | Drag-and-Drop | @dnd-kit | 6.3.1 / 10.0.0 | Accessible DnD for Kanban |
 | PDF Export | jspdf + jspdf-autotable | 4.2.1 / 5.0.7 | Client-side PDF generation |
+| Error Monitoring | @sentry/react | 9.47.x | Client-side exception reporting (optional `VITE_SENTRY_DSN`) |
+| Product Analytics | posthog-js | 1.200.x | Usage analytics behind cookie consent + `VITE_POSTHOG_KEY` |
+| 3D / Marketing | @react-three/fiber, @react-three/drei, three | 9.5.x / 10.7.x / 0.183.x | Landing and hero visuals |
 
-The application is bootstrapped in `src/main.jsx` via React 19's `createRoot` API, wrapped in `<BrowserRouter>` for client-side routing and `<StrictMode>` for development-time diagnostics.
+The application is bootstrapped in `src/main.jsx` via React 19's `createRoot` API, wrapped in `<StrictMode>`, optional `PostHogProvider`, `<BrowserRouter>`, and Sentry initialization when a DSN is configured.
 
 #### 2.1.2 Application Shell & Routing Architecture
 
@@ -100,23 +103,38 @@ The routing architecture implements a deliberate separation between the **market
 **File: `src/App.jsx`**
 
 ```
-/ (root)                → LandingPage.jsx (public marketing page)
-/oauth-callback         → OAuthCallback.jsx (Google OAuth token hydration)
-/dashboard/*            → AppLayout (authenticated shell with Sidebar + TopNav)
-  /dashboard/list       → ListView.jsx (tabular feature backlog)
-  /dashboard/board      → BoardView.jsx (Kanban drag-and-drop)
-  /dashboard/timeline   → TimelineView.jsx (Gantt-style view)
-  /dashboard/home       → DashboardView.jsx (executive dashboard)
-  /dashboard/insights   → InsightsView.jsx (analytics)
-  /dashboard/compliance → ComplianceView.jsx (compliance suite hub)
-  /dashboard/frameworks → FrameworksPage.jsx (universal framework matrix)
-  /dashboard/vault      → VaultPage.jsx (knowledge vault / PDF upload)
-  /dashboard/profile    → ProfilePage.jsx
-  /dashboard/auditlog   → AuditLogView.jsx
-  /dashboard/account    → EnterpriseSettings.jsx
+/ (root)                      → LandingPage.jsx (public marketing)
+/platform/governance          → Governance.jsx
+/platform/prioritization      → Prioritization.jsx
+/solutions/enterprise         → Enterprise.jsx
+/company/about                → company/About.jsx
+/features, /about             → Features.jsx, About.jsx
+/data-processing, /subprocessors, /dpa, /security, /privacy, /terms
+                              → legal / trust marketing pages (DPA, subprocessors, etc.)
+/oauth-callback               → OAuthCallback.jsx (Google OAuth token hydration)
+/dashboard/*                  → AppLayout (authenticated shell: Sidebar + single-row header)
+  /dashboard/list             → ListView.jsx
+  /dashboard/board            → BoardView.jsx
+  /dashboard/timeline         → TimelineView.jsx
+  /dashboard/home             → DashboardView.jsx
+  /dashboard/clients          → Clients.jsx (CRM; /overview and /projects redirect here)
+  /dashboard/inbox            → Inbox.jsx (workspace DM)
+  /dashboard/insights         → InsightsView.jsx
+  /dashboard/compliance       → ComplianceView.jsx
+  /dashboard/calendar         → CalendarView.jsx
+  /dashboard/trustcenter      → TrustCenterView.jsx
+  /dashboard/settings         → SettingsView.jsx
+  /dashboard/frameworks[/*]  → FrameworksPage.jsx, FrameworkDetailPage.jsx
+  /dashboard/vault            → VaultPage.jsx
+  /dashboard/profile          → ProfilePage.jsx
+  /dashboard/auditlog         → AuditLogView.jsx
+  /dashboard/account          → EnterpriseSettings.jsx (alias: enterprise-settings)
+  /dashboard/spaces           → SpacesPage.jsx
+  /dashboard/system-health    → SystemHealthPage.jsx
+  /dashboard/billing          → BillingPage.jsx
 ```
 
-Legacy routes (e.g., `/board`, `/compliance`) are preserved as `<Navigate>` redirects to `/dashboard/*` for backward compatibility.
+Legacy top-level paths (e.g., `/board`, `/compliance`, `/billing`) are preserved as `<Navigate>` redirects into `/dashboard/*` for backward compatibility. `App.jsx` root uses `<CookieConsent />` and optional `PremiumCursor` on the landing route.
 
 **CRM hub & workspace messaging routes (post-audit additions):**
 
@@ -210,34 +228,39 @@ The FastAPI application uses a `lifespan` context manager (defined in `backend/m
 1. **Database Initialization:** `init_db()` creates all SQLAlchemy tables if they do not exist and runs lightweight migrations via `ALTER TABLE` for schema evolution.
 2. **Data Seeding:** If the `features` table is empty, the system seeds four default features (`CYN-101` through `CYN-104`) and two default epics (`payments-finops`, `regulatory-compliance`) to provide an immediate demo experience.
 
+**Observability & guardrails (runtime):** `main.py` initializes **Sentry** when `SENTRY_DSN` is set and **PostHog** (server) when `POSTHOG_API_KEY` is set. **SlowAPI** rate limiting is wired through a shared `limiter` (`backend/rate_limit.py`). `load_dotenv` loads `backend/.env` with `override=False` so production hosts are not silently overwritten by checked-in placeholders.
+
 #### 2.2.3 API Route Architecture
 
 The backend exposes the following route groups:
 
 | Router Module | Prefix | Endpoints | Auth Required |
 |---|---|---|---|
-| `main.py` (direct) | `/api` | `/health`, `/features/*`, `/epics/*`, `/vendors/*`, `/audit-log`, `/users/*`, `/settings/keys/*` | Yes (except `/health`) |
+| `main.py` (direct) | `/api` | `/health`, `/features/*`, `/epics/*`, `/vendors/*`, `/audit-log`, `/users/*` (core profile routes), `/settings/keys/*`, WebSocket `/ws/dashboard` | Yes (except `/health` and WS auth per handler) |
 | `routers/auth.py` | `/api/auth` | `/register`, `/login`, `/refresh`, `/google/login`, `/google/callback`, `/make-admin`, `/apple`, `/sso` | No (auth endpoints) |
+| `routers/oidc_auth.py` | `/api/auth` | `/oidc/login`, `/oidc/callback` (OIDC authorization code flow; Okta / Azure AD / Keycloak–compatible) | No |
+| `routers/public_compliance.py` | `/api/public` | `/compliance/subprocessors`, `/compliance/assurance`, `/enterprise-config` | No |
+| `routers/user_privacy.py` | `/api/users` | `/me/data-export`, `/me/delete-account`, `/me/privacy-settings` | Yes |
+| `routers/scim_stub.py` | `/api/scim/v2` | `/ServiceProviderConfig` (SCIM discovery; provisioning gated by `SCIM_ENABLED`) | No |
 | `routers/audit.py` | `/api/audit` | `/node1`, `/node2` | Yes |
 | `routers/billing.py` | `/api/billing` | `/create-checkout-session`, `/webhook` | Yes (except webhook) |
 | `routers/vault.py` | `/api/vault` | `/upload`, `/documents`, `/documents/{id}/url`, `/documents/{id}/download`, `/{id}` (DELETE) | Yes |
 | `routers/crm.py` | `/api/crm` | `/stats`, `/clients` (GET list + POST create), `/projects`, `/inbox`, `/inbox/{id}/read` (PATCH) | Yes |
 | `routers/messages.py` | `/api` | `/workspace/members`, `/conversations`, `/conversations/dm` (POST), `/conversations/{id}/messages` (GET/POST) | Yes |
+| `routers/invites.py` | `/api/invites` | `POST /send` — workspace invite email (Resend + Supabase when configured) | Yes |
 | `main.py` (legacy v1) | `/api/v1` | `/audit/node1`, `/audit/node2`, `/analyze-rice` | Yes |
-
-> **Note:** `backend/routers/invites.py` (team/workspace invites) may be present in the repository as an additional router included from `main.py` when enabled; it is documented in deployment notes rather than duplicated in every revision of this table.
 
 ### 2.3 Database & Persistence Layer
 
-#### 2.3.1 SQLite Schema Architecture
+#### 2.3.1 SQLite / PostgreSQL Persistence
 
-The system uses SQLite via `aiosqlite` as its relational persistence layer. SQLite was selected for the following reasons:
+The ORM targets **SQLite** in local development (`sqlite+aiosqlite:///./cynapse.db`) and **PostgreSQL** in production when `DATABASE_URL` uses `postgresql+asyncpg` (Supabase or other hosts). SQLite was selected for demo and thesis portability; PostgreSQL supports multi-tenant SaaS workloads and is used when `DATABASE_URL` is pointed at a managed instance.
 
-1. **Zero-Configuration Deployment:** No external database server is required, simplifying deployment to platforms like Render's free tier.
-2. **Single-File Portability:** The entire database state is contained in `cynapse.db`, enabling trivial backup and migration.
-3. **Sufficient Concurrency:** For the expected user load of an MTP demo system (single-digit concurrent users), SQLite's WAL mode provides adequate read concurrency.
+1. **Zero-Configuration (SQLite):** No external database server is required for local demos.
+2. **Single-File Portability (SQLite):** State is contained in `cynapse.db` for trivial backup.
+3. **Production Scale (PostgreSQL):** Async SQLAlchemy with `asyncpg` matches the deployed backend topology.
 
-**Connection String:** `sqlite+aiosqlite:///./cynapse.db` (configurable via `DATABASE_URL` environment variable).
+**Connection String:** `DATABASE_URL` (see `.env.example`); default local SQLite remains `sqlite+aiosqlite:///./cynapse.db`.
 
 #### 2.3.2 Entity-Relationship Model
 
@@ -610,12 +633,19 @@ The Google OAuth implementation follows the standard Authorization Code flow:
 
 If token extraction fails, the user is redirected to the landing page.
 
-### 4.3 Planned/Staged Authentication Providers
+### 4.3 OpenID Connect (Enterprise SSO)
 
-The following authentication providers are registered as API stubs, staged for future implementation:
+When `OIDC_ISSUER` (and related client credentials) are configured, **`routers/oidc_auth.py`** exposes a standards-based **authorization code** flow:
 
-- **Apple OAuth:** `/api/auth/apple` — returns `{"message": "Apple OAuth provider pending configuration"}`.
-- **SAML/SSO:** `/api/auth/sso` — returns `{"message": "SAML/SSO provider pending configuration"}`.
+1. **`GET /api/auth/oidc/login`** — builds an authorize URL from the issuer’s `/.well-known/openid-configuration`, generates a signed `state` JWT, and redirects the browser to the IdP.
+2. **`GET /api/auth/oidc/callback`** — validates `state`, exchanges the code for tokens at the IdP token endpoint, resolves userinfo (or `id_token` claims), provisions or links the user, and issues the same **access + refresh JWT pair** as Google OAuth (redirect to `/oauth-callback` with query tokens).
+
+**Production guardrails:** OIDC refuses weak or placeholder `JWT_SECRET_KEY` values when the environment is production-like, unless `ALLOW_WEAK_JWT_FOR_LOCAL_DEV` is explicitly enabled for local development.
+
+### 4.4 Planned / Stub Authentication Providers
+
+- **Apple OAuth:** `/api/auth/apple` — stub response pending full Sign in with Apple configuration.
+- **Legacy SAML banner:** `/api/auth/sso` — may still return a placeholder message; enterprise customers typically use **OIDC** (Section 4.3) instead.
 
 ---
 
@@ -986,6 +1016,15 @@ The **API Keys** tab allows users to input and securely store (via Fernet encryp
 | `boto3` | Latest | AWS SDK for S3 document storage (staged) |
 | `python-dotenv` | Latest | Environment variable loading from `.env` files |
 | `aiofiles` | Latest | Async file I/O operations |
+| `asyncpg` / `psycopg2-binary` | Latest | PostgreSQL drivers (async primary + tooling) |
+| `email-validator` | Latest | Pydantic email types for invite payloads |
+| `langchain-text-splitters` | Latest | Text chunking for vault / ingestion pipelines |
+| `supabase` | Latest | Supabase admin client for invites and related metadata |
+| `resend` | Latest | Transactional email for workspace invitations |
+| `sentry-sdk` | Latest | Server-side error monitoring |
+| `posthog` | Latest | Server-side product analytics (optional) |
+| `slowapi` | Latest | IP-based rate limiting |
+| `celery[redis]` / `redis` | Latest | Optional async workers (e.g., vault ingestion behind `REDIS_URL`) |
 
 ### 11.2 Frontend Dependencies (`package.json`)
 
@@ -1008,6 +1047,10 @@ The **API Keys** tab allows users to input and securely store (via Fernet encryp
 | `autoprefixer` | 10.4.23 | CSS vendor prefix automation |
 | `postcss` | 8.5.6 | CSS transformation pipeline |
 | `concurrently` | 9.2.1 | Parallel process runner for dev server |
+| `@sentry/react` | 9.47.x | Client error monitoring |
+| `posthog-js` | 1.200.x | Client analytics (with React provider) |
+| `@react-three/fiber` / `@react-three/drei` / `three` | As locked in `package.json` | Marketing 3D surfaces |
+| `@playwright/test` | 1.56.x | E2E tests (`npm run test:e2e`) |
 
 ---
 
@@ -1029,7 +1072,7 @@ The `S3Manager` class in `backend/utils/s3_storage.py` is retained as staged inf
 
 **Before:** The application had separate login implementations: a `LoginPage.jsx` (split-screen design) and the `AuthView.jsx` component.
 
-**After:** The login is unified into `AuthView.jsx`, which is conditionally rendered by `AppLayout` when `currentUser` is null. `AuthView` supports email/password login, registration with role selection, Google OAuth, and stubs for Apple and SSO. The landing page (`/`) links directly to `/dashboard`, where the auth gate activates.
+**After:** The login is unified into `AuthView.jsx`, which is conditionally rendered by `AppLayout` when `currentUser` is null. `AuthView` supports email/password login, registration with role selection, Google OAuth, **organization SSO (OIDC)** when enabled by backend configuration, and stubs for Apple. The landing page (`/`) links directly to `/dashboard`, where the auth gate activates.
 
 #### 12.1.3 Dual API Route Support (v1 + v2)
 
@@ -1063,6 +1106,20 @@ export const runNode1 = async (payload, keys = {}) => {
 
 **Development scripts:** `package.json` `dev` script may use `concurrently` without `--kill-others-on-fail` and without `--strictPort` on Vite to reduce friction when one process fails or the dev port is occupied; `dev:web` runs the frontend alone.
 
+#### 12.1.5 Enterprise Trust Surface, OIDC, Privacy APIs & Observability
+
+**Public compliance API:** `routers/public_compliance.py` serves **unauthenticated** JSON for procurement and Trust Center UIs: versioned **subprocessor** register, **assurance posture** placeholders (SOC 2 / ISO / pentest fields driven by env), and **`/enterprise-config`** (OIDC enabled flag, status page URL, DPA/subprocessor routes, default retention).
+
+**OIDC SSO:** `routers/oidc_auth.py` adds **`/api/auth/oidc/login`** and **`/api/auth/oidc/callback`** using provider discovery (`/.well-known/openid-configuration`), state signed with `JWT_SECRET_KEY` (weak secrets rejected in production unless explicitly allowed for local dev).
+
+**Privacy & GDPR-style controls:** `routers/user_privacy.py` exposes **`GET /api/users/me/data-export`** (workspace-scoped JSON snapshot), **`POST /api/users/me/delete-account`** (anonymization + audit event; password not required for OAuth/OIDC-only accounts), and **`GET /api/users/me/privacy-settings`** (retention, residency, MFA, AI-training disclosure flags from environment).
+
+**SCIM stub:** `routers/scim_stub.py` implements **`GET /api/scim/v2/ServiceProviderConfig`** so enterprise IdPs can probe capability; full provisioning is gated by **`SCIM_ENABLED`**.
+
+**Observability & limits:** Server **Sentry** and **PostHog** initialization in `main.py`; **SlowAPI** rate limiting; optional **Celery + Redis** for background vault work per `.env.example`.
+
+**Frontend:** Expanded **marketing and legal** routes (`/security`, `/privacy`, `/terms`, `/dpa`, `/subprocessors`, `/data-processing`, platform and solutions pages), **billing** (`BillingPage.jsx`), **system health**, **cookie consent**, and lazy-loaded dashboard routes aligned with `App.jsx`.
+
 ### 12.2 Deployment Evolution
 
 1. **Phase 1:** Local development only (localhost:5173 + localhost:8000).
@@ -1092,90 +1149,133 @@ cynapse-platform/
 ├── mcp.json                        # MCP server configuration
 │
 ├── backend/
-│   ├── main.py                     # FastAPI application entry point
-│   ├── database.py                 # SQLAlchemy async engine + migrations
-│   ├── models.py                   # ORM models (core + vendors/epics/… + messaging tables; see §2.3.2)
-│   ├── auth.py                     # JWT + bcrypt authentication
-│   ├── requirements.txt            # Python dependencies (20 packages)
+│   ├── main.py                     # FastAPI entry; router mounts, Sentry/PostHog, seeds, legacy v1 routes
+│   ├── database.py                 # SQLAlchemy async engine + additive migrations
+│   ├── models.py                   # ORM models (features, workspaces, messaging, …)
+│   ├── auth.py                     # JWT + bcrypt + RBAC dependencies
+│   ├── tenant.py                   # Workspace scoping helpers
+│   ├── rate_limit.py               # Slowapi limiter
+│   ├── worker.py                   # Celery worker entry (optional)
+│   ├── ingest.py                   # Ingestion utilities
+│   ├── requirements.txt            # Python dependencies (see §11.1)
 │   ├── render.yaml                 # Render deployment configuration
 │   ├── available_models.txt        # Gemini model inventory
 │   │
 │   ├── routers/
-│   │   ├── auth.py                 # Auth routes (register, login, OAuth, refresh)
-│   │   ├── audit.py                # Node 1 + Node 2 audit routes (v2)
-│   │   ├── billing.py              # Stripe checkout + webhook routes
-│   │   ├── vault.py                # Document upload + vectorization routes
-│   │   ├── crm.py                  # CRM hub: stats, clients/vendors, projects/epics, audit-derived inbox
-│   │   ├── messages.py             # Workspace members, DM conversations, chat messages + WS notify
-│   │   └── invites.py              # Team/workspace invites (when enabled)
+│   │   ├── auth.py                 # Email/password + Google OAuth + stubs
+│   │   ├── oidc_auth.py            # OIDC login + callback
+│   │   ├── public_compliance.py    # Public trust / subprocessor / enterprise-config JSON
+│   │   ├── user_privacy.py         # Data export, delete-account, privacy settings
+│   │   ├── scim_stub.py            # SCIM ServiceProviderConfig
+│   │   ├── audit.py                # Node 1 + Node 2 (v2)
+│   │   ├── billing.py              # Stripe checkout + webhook
+│   │   ├── vault.py                # Vault upload + listing + download
+│   │   ├── crm.py                  # CRM stats, clients, projects, inbox
+│   │   ├── messages.py             # Workspace DMs + REST + WS notify
+│   │   └── invites.py              # POST /api/invites/send (Resend + Supabase)
 │   │
 │   ├── services/
-│   │   └── ai_service.py           # Gemini client, system prompts, RICE/Node logic
+│   │   ├── ai_service.py           # Gemini prompts, Node 1/2, RICE
+│   │   ├── vector_utils.py         # Embedding dimension fitting
+│   │   ├── vault_ingest.py         # Vault ingestion pipeline pieces
+│   │   └── pinecone_tenant.py      # Pinecone namespace / filter helpers
 │   │
 │   ├── utils/
-│   │   ├── encryption.py           # Fernet encryption for API keys
-│   │   ├── websockets.py           # WebSocket ConnectionManager; dashboard + chat push to user
-│   │   └── s3_storage.py           # AWS S3 manager (staged)
+│   │   ├── encryption.py           # Fernet for secure settings
+│   │   ├── websockets.py           # ConnectionManager; dashboard + chat push
+│   │   ├── s3_storage.py           # S3 manager (staged)
+│   │   └── supabase_client.py      # Supabase admin for invites / metadata
 │   │
 │   └── migrations/
-│       └── 20260324_phase2_commercial_saas.sql
+│       ├── 20260324_phase2_commercial_saas.sql
+│       ├── phase4_thesis_silver_bullets.sql
+│       └── remove_jira_integration.sql
 │
 └── src/
-    ├── App.jsx                     # Root component + routing; AppLayout = single-row header + shell
-    ├── main.jsx                    # React entry point (optional PostHog when VITE_POSTHOG_KEY set)
-    ├── index.css                   # Global styles, glassmorphism, animations
+    ├── App.jsx                     # Routes, AppLayout, lazy imports, cookie consent
+    ├── main.jsx                    # Sentry + PostHog + BrowserRouter + StrictMode
+    ├── index.css                   # Global styles
     │
     ├── components/
-    │   ├── AuthView.jsx            # Login/Register + OAuth buttons
-    │   ├── Sidebar.jsx             # Navigation sidebar
-    │   ├── ProfileMenu.jsx         # Avatar dropdown menu
-    │   ├── NotificationCenter.jsx  # Notification bell + panel
-    │   ├── FeatureModal.jsx        # Feature detail modal (PRD, Audit, Vault, Comments)
-    │   ├── ListView.jsx            # Tabular backlog view
-    │   ├── BoardView.jsx           # Kanban board with DnD
-    │   ├── TimelineView.jsx        # Gantt timeline view
-    │   ├── CalendarView.jsx        # Calendar view
-    │   ├── DashboardView.jsx       # Executive dashboard
-    │   ├── InsightsView.jsx        # Analytics dashboard
-    │   ├── ComplianceView.jsx      # Compliance suite (4-tab hub)
-    │   ├── ComplianceDashboard.jsx # Framework adherence metrics
-    │   ├── TrustCenterView.jsx     # Trust center
-    │   ├── SettingsView.jsx        # Quick settings
-    │   ├── AuditLogView.jsx        # Audit event viewer
-    │   ├── VaultUploader.jsx       # PDF upload + document table
-    │   ├── RichTextEditor.jsx      # ContentEditable PRD editor
-    │   ├── Badges.jsx              # Status/priority badges
-    │   ├── ProfileView.jsx         # Profile display
-    │   ├── PlaceholderView.jsx     # Empty state placeholder
-    │   ├── SubscriptionCard.jsx    # Billing plan card
+    │   ├── AuthView.jsx
+    │   ├── Sidebar.jsx
+    │   ├── ProfileMenu.jsx
+    │   ├── NotificationCenter.jsx
+    │   ├── FeatureModal.jsx
+    │   ├── ListView.jsx
+    │   ├── BoardView.jsx
+    │   ├── TimelineView.jsx
+    │   ├── CalendarView.jsx
+    │   ├── DashboardView.jsx
+    │   ├── InsightsView.jsx
+    │   ├── ComplianceView.jsx
+    │   ├── ComplianceDashboard.jsx
+    │   ├── TrustCenterView.jsx
+    │   ├── SettingsView.jsx
+    │   ├── AuditLogView.jsx
+    │   ├── VaultUploader.jsx
+    │   ├── RichTextEditor.jsx
+    │   ├── Badges.jsx
+    │   ├── ProfileView.jsx
+    │   ├── PlaceholderView.jsx
+    │   ├── SubscriptionCard.jsx
+    │   ├── GateStatusBar.jsx
+    │   ├── dashboard/
+    │   │   └── InviteModal.jsx
+    │   ├── 3d/
+    │   │   └── IsolatedHero3D.jsx
     │   └── ui/
-    │       └── BrandedLoader.jsx    # Landing loader; onComplete dedupe + fallback timers
+    │       ├── BrandedLoader.jsx
+    │       ├── CookieConsent.jsx
+    │       ├── Logo.jsx
+    │       ├── PremiumCursor.jsx
+    │       ├── MagneticButton.jsx
+    │       └── SafeScrollReveal.jsx
     │
     ├── hooks/
-    │   └── useWebSocket.js         # Dashboard WS; dispatches chat_message events for Inbox
+    │   └── useWebSocket.js         # Dashboard WS + chat custom events
     │
     ├── pages/
-    │   ├── LandingPage.jsx         # Marketing landing page
-    │   ├── OAuthCallback.jsx       # Google OAuth token handler
-    │   ├── EnterpriseSettings.jsx  # Settings hub (API keys, billing, users)
-    │   ├── FrameworksPage.jsx      # Universal framework matrix (27 frameworks)
-    │   ├── FrameworkDetailPage.jsx # Framework detail view
-    │   ├── SpacesPage.jsx          # Workspace spaces manager
-    │   ├── ProfilePage.jsx         # User profile page
-    │   ├── VaultPage.jsx           # Knowledge Vault page
+    │   ├── LandingPage.jsx
+    │   ├── OAuthCallback.jsx
+    │   ├── EnterpriseSettings.jsx
+    │   ├── VaultPage.jsx
+    │   ├── SpacesPage.jsx
+    │   ├── FrameworksPage.jsx
+    │   ├── FrameworkDetailPage.jsx
+    │   ├── ProfilePage.jsx
+    │   ├── BillingPage.jsx
+    │   ├── SystemHealthPage.jsx
+    │   ├── Security.jsx
+    │   ├── PrivacyPolicy.jsx
+    │   ├── TermsOfService.jsx
+    │   ├── Features.jsx
+    │   ├── About.jsx
+    │   ├── DataProcessing.jsx
+    │   ├── Subprocessors.jsx
+    │   ├── DataProcessingAddendum.jsx
+    │   ├── platform/
+    │   │   ├── Governance.jsx
+    │   │   └── Prioritization.jsx
+    │   ├── solutions/
+    │   │   └── Enterprise.jsx
+    │   ├── company/
+    │   │   └── About.jsx
     │   └── dashboard/
-    │       ├── Clients.jsx         # CRM clients (vendors) grid + create modal
-    │       └── Inbox.jsx           # Workspace DM inbox (two-pane UI)
+    │       ├── Clients.jsx
+    │       └── Inbox.jsx
     │
     ├── context/
-    │   └── ProjectContext.jsx      # Global state provider
-    │
+    │   └── ProjectContext.jsx
     ├── config/
-    │   └── constants.js            # Regions, industries, regulations, gated columns
-    │
+    │   ├── constants.js
+    │   └── enterprise.js
+    ├── theme/
+    │   └── marketing.js
     └── utils/
-        ├── api.js                  # HTTP client + auth + CRM/messaging + API wrappers
-        └── pdf.js                  # Browser-side PDF.js text extraction
+        ├── api.js
+        ├── pdf.js
+        └── motion.js               # Shared Framer page transitions
 ```
 
 ### 13.2 API Endpoint Reference
@@ -1183,11 +1283,16 @@ cynapse-platform/
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/api/health` | No | Health check |
+| GET | `/api/public/compliance/subprocessors` | No | Machine-readable subprocessor register |
+| GET | `/api/public/compliance/assurance` | No | Assurance / trust posture metadata |
+| GET | `/api/public/enterprise-config` | No | Enterprise flags (OIDC, contacts, routes) |
 | POST | `/api/auth/register` | No | User registration |
 | POST | `/api/auth/login` | No | Email/password login |
 | POST | `/api/auth/refresh` | No | JWT token refresh |
 | GET | `/api/auth/google/login` | No | Google OAuth initiation |
 | GET | `/api/auth/google/callback` | No | Google OAuth callback |
+| GET | `/api/auth/oidc/login` | No | Start OIDC authorization code flow |
+| GET | `/api/auth/oidc/callback` | No | OIDC redirect URI handler |
 | GET | `/api/features` | Yes | List all features |
 | GET | `/api/features/:id` | Yes | Get single feature |
 | POST | `/api/features` | Yes | Create feature |
@@ -1199,8 +1304,8 @@ cynapse-platform/
 | POST | `/api/vendors` | Yes | Create vendor |
 | GET | `/api/audit-log` | Yes | List audit events |
 | POST | `/api/audit-log` | Yes | Create audit event |
-| POST | `/api/audit/node1` | Yes | Node 1 RAG audit (v2) |
-| POST | `/api/audit/node2` | Yes | Node 2 web intel audit (v2) |
+| POST | `/api/audit/node1` | Yes | Node 1 RAG audit (v2). Payload may include optional metadata filters: `document_ids`, `region`, `industry`, `doc_type`. May return `retrieval` when Gemini generation is rate-limited |
+| POST | `/api/audit/node2` | Yes | Node 2 web intel audit (v2). May return `retrieval` when Gemini generation is rate-limited |
 | POST | `/api/v1/audit/node1` | Yes | Node 1 audit (v1, legacy) |
 | POST | `/api/v1/audit/node2` | Yes | Node 2 audit (v1, legacy) |
 | POST | `/api/v1/analyze-rice` | Yes | AI RICE scoring |
@@ -1208,6 +1313,11 @@ cynapse-platform/
 | PUT | `/api/users/me` | Yes | Update profile (multipart) |
 | GET | `/api/users` | Yes | List users (workspace-scoped when `workspace_id` is set) |
 | PUT | `/api/users/:id/role` | Admin | Change user role |
+| GET | `/api/users/me/data-export` | Yes | GDPR-style JSON export (workspace-scoped) |
+| POST | `/api/users/me/delete-account` | Yes | Account anonymization / deletion |
+| GET | `/api/users/me/privacy-settings` | Yes | Privacy disclosures and retention flags |
+| GET | `/api/scim/v2/ServiceProviderConfig` | No | SCIM 2.0 discovery (provisioning gated by env) |
+| POST | `/api/invites/send` | Yes | Send workspace invite email |
 | GET | `/api/crm/stats` | Yes | CRM aggregate stats (initiatives, vendors, completion, etc.) |
 | GET | `/api/crm/clients` | Yes | List clients (vendor projection) |
 | POST | `/api/crm/clients` | Yes | Create client / vendor with CRM fields |
@@ -1225,6 +1335,8 @@ cynapse-platform/
 | POST | `/api/billing/webhook` | No | Stripe webhook handler |
 | POST | `/api/vault/upload` | Yes | Upload + vectorize PDF |
 | GET | `/api/vault/documents` | Yes | List vault documents |
+| PUT | `/api/vault/documents/:id/tags` | Admin | Update vault segmentation tags (`region`, `industry`, `doc_type`) in DB |
+| POST | `/api/vault/import-local` | Admin | Bulk-register + vectorize PDFs from a server-local folder path (offline ingestion) |
 | GET | `/api/vault/documents/:id/url` | Yes | Get document download URL |
 | GET | `/api/vault/documents/:id/download` | Yes | Download document file |
 | DELETE | `/api/vault/:id` | Admin | Delete vault document |
@@ -1239,6 +1351,14 @@ cynapse-platform/
 | `GEMINI_API_KEY` | Backend | Yes | Google Gemini API key |
 | `PINECONE_API_KEY` | Backend | Yes | Pinecone vector DB API key |
 | `PINECONE_INDEX` | Backend | No | Pinecone index name (default: `cynapse-compliance`) |
+| `PINECONE_VECTOR_DIMENSION` | Backend | No | Vector dimension used for Pinecone upsert/query padding/truncation (default `768`) |
+| `EMBED_CONCURRENCY` | Backend | No | Limits concurrent embedding HTTP calls during PDF ingestion (default `2`) |
+| `VAULT_IMPORT_MAX_FILES` | Backend | No | Safety cap for `/api/vault/import-local` walk (default `2000`) |
+| `AUDIT_PINECONE_TOP_K` | Backend | No | Pinecone `top_k` for Node 1 retrieval |
+| `AUDIT_RAG_CONTEXT_CHARS` | Backend | No | Max assembled RAG parent-context characters for Node 1 |
+| `AUDIT_RAG_CITATIONS_MAX` | Backend | No | Max citations included in Node 1 prompt |
+| `AUDIT_RETRIEVAL_CACHE_TTL_SECONDS` | Backend | No | TTL for Node 1 retrieval cache |
+| `AI_PROMPT_PRD_CHARS`, `AI_PROMPT_CUSTOM_DOCS_CHARS`, `AI_PROMPT_WEB_INTEL_CHARS` | Backend | No | Prompt truncation budgets in `services/ai_service.py` |
 | `SEARCH_API_KEY` | Backend | No | SerpAPI key for Node 2 |
 | `AI_MODEL` | Backend | No | Gemini model (default: `gemini-2.0-flash`) |
 | `GOOGLE_CLIENT_ID` | Backend | Yes | Google OAuth client ID |
@@ -1252,9 +1372,26 @@ cynapse-platform/
 | `VITE_POSTHOG_KEY` | Frontend | No | PostHog project key; analytics skipped if unset |
 | `VITE_POSTHOG_HOST` | Frontend | No | PostHog API host (optional override) |
 | `VITE_WS_URL` | Frontend | No | Explicit WebSocket URL for dashboard socket (optional; derived from API base when unset) |
+| `VITE_SENTRY_DSN` | Frontend | No | Client Sentry DSN |
+| `VITE_STATUS_PAGE_URL` | Frontend | No | Status page link for Trust UI |
+| `SENTRY_DSN` | Backend | No | Server Sentry DSN |
+| `POSTHOG_API_KEY` | Backend | No | Server PostHog project key |
+| `POSTHOG_HOST` | Backend | No | PostHog ingest host |
+| `ENVIRONMENT` | Backend | No | `production` / `development` (affects OIDC strictness) |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_SCOPES`, `OIDC_DEFAULT_ROLE` | Backend | No | OIDC SSO (issuer required to enable flow) |
+| `ALLOW_WEAK_JWT_FOR_LOCAL_DEV` | Backend | No | Local-only escape hatch for OIDC state signing |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Backend | No | Supabase admin (invites, related flows) |
+| `RESEND_API_KEY`, `RESEND_FROM` | Backend | No | Outbound email for invites |
+| `REDIS_URL` | Backend | No | Celery broker / async workers |
+| `SCIM_ENABLED` | Backend | No | Advertise SCIM provisioning support |
+| `COMPLIANCE_SUBPROCESSOR_VERSION`, `COMPLIANCE_SUBPROCESSOR_EFFECTIVE_DATE` | Backend | No | Subprocessor register versioning |
+| `TRUST_SOC2_STATUS`, `TRUST_ISO_STATUS`, `TRUST_PENTEST_*`, `SECURITY_CONTACT_EMAIL`, `LEGAL_CONTACT_EMAIL` | Backend | No | Public assurance JSON fields |
+| `DEFAULT_DATA_RETENTION_DAYS`, `WORKSPACE_MFA_REQUIRED`, `AI_TRAINING_CUSTOMER_DATA` | Backend | No | Privacy settings API |
+| `STATUS_PAGE_URL` | Backend | No | Public status page URL |
+| `CORS_EXTRA_ORIGINS`, `CORS_ALLOW_VERCEL_PREVIEW_REGEX` | Backend | No | Additional CORS allowlists |
 
 ---
 
 **END OF DOCUMENT**
 
-*This document was generated through a comprehensive forensic audit of the entire Cynapse Enterprise repository. Every file in the `backend/` and `src/` directories was read and analyzed. All code citations reference the actual implementation as of the audit date.*
+*This document was generated through a comprehensive forensic audit of the Cynapse Enterprise repository. It was refreshed to match router mounts in `backend/main.py`, the routing table in `src/App.jsx`, and dependency manifests as of the audit date above.*

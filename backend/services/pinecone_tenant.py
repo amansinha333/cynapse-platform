@@ -34,7 +34,16 @@ async def upsert_vectors(index: Any, workspace_id: str, vectors: list[dict[str, 
 
 
 async def query_vectors(index: Any, *, workspace_id: str, **kwargs: Any) -> Any:
-    """Query Pinecone with a mandatory workspace filter (caller filters are ignored for safety)."""
+    """Query Pinecone with mandatory workspace filter.
+
+    Callers may provide an additional filter via `extra_filter` which will be AND-ed with workspace scoping.
+    This keeps tenant isolation while enabling metadata pre-filtering (e.g., restrict to a document_id set).
+    """
+    extra_filter = kwargs.pop("extra_filter", None)
     kwargs.pop("filter", None)
-    kwargs["filter"] = pinecone_workspace_filter(workspace_id)
+    ws_filter = pinecone_workspace_filter(workspace_id)
+    if extra_filter and isinstance(extra_filter, dict):
+        kwargs["filter"] = {"$and": [ws_filter, extra_filter]}
+    else:
+        kwargs["filter"] = ws_filter
     return await asyncio.to_thread(index.query, **kwargs)

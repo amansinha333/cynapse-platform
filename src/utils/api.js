@@ -278,6 +278,22 @@ export const fetchVaultIngestTaskStatus = async (taskId) => {
   return res.json();
 };
 
+export const importVaultLocalFolder = (sourceDir) =>
+  request('/api/vault/import-local', {
+    method: 'POST',
+    body: (() => {
+      const f = new FormData();
+      f.append('source_dir', sourceDir);
+      return f;
+    })(),
+  });
+
+export const updateVaultDocumentTags = (documentId, tags) =>
+  request(`/api/vault/documents/${encodeURIComponent(documentId)}/tags`, {
+    method: 'PUT',
+    body: JSON.stringify(tags || {}),
+  });
+
 /**
  * Upload a vault PDF. If the server returns `task_id` (Celery / REDIS_URL), polls until processing finishes.
  * @param {FormData} formData

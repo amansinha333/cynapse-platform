@@ -24,6 +24,9 @@ from utils.websockets import dashboard_manager
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+EMBED_CONCURRENCY = int(os.getenv("EMBED_CONCURRENCY", "2"))
+_embed_semaphore = asyncio.Semaphore(max(1, EMBED_CONCURRENCY))
+
 EMBEDDING_MODEL_CANDIDATES = [
     ("v1beta", "models/gemini-embedding-001"),
     ("v1beta", "models/gemini-embedding-2-preview"),
@@ -43,17 +46,18 @@ async def get_embedding_async(text: str) -> list[float] | None:
             payload = {"model": model_name, "content": {"parts": [{"text": text}]}}
             for attempt in range(3):
                 try:
-                    response = await client.post(url, json=payload)
+                    async with _embed_semaphore:
+                        response = await client.post(url, json=payload)
                     if response.status_code == 200:
                         return response.json()["embedding"]["values"]
                     if response.status_code == 404:
                         break
                     if response.status_code == 429:
-                        await asyncio.sleep(2**attempt)
+                        await asyncio.sleep(min(30, 2 ** (attempt + 2)))
                         continue
                     return None
                 except httpx.HTTPError:
-                    await asyncio.sleep(2**attempt)
+                    await asyncio.sleep(min(30, 2 ** (attempt + 1)))
     return None
 
 
@@ -193,6 +197,8 @@ async def process_document_vectors(
     filename: str,
     feature_id: str,
     workspace_id: str,
+    *,
+    delete_after: bool = True,
 ) -> None:
     require_vector_workspace_id(workspace_id)
 
@@ -211,6 +217,33 @@ async def process_document_vectors(
         return
 
     try:
+        # Load document-level tags for metadata filtering (region/industry/doc_type).
+        doc_region = ""
+        doc_industry = ""
+        doc_type = ""
+        try:
+            async with async_session_maker() as background_db:
+                doc_row = (
+                    (
+                        await background_db.execute(
+                            select(ComplianceDocument).where(
+                                ComplianceDocument.id == file_id,
+                                ComplianceDocument.workspace_id == workspace_id,
+                            )
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+                if doc_row:
+                    doc_region = getattr(doc_row, "region", "") or ""
+                    doc_industry = getattr(doc_row, "industry", "") or ""
+                    doc_type = getattr(doc_row, "doc_type", "") or ""
+        except Exception:
+            doc_region = ""
+            doc_industry = ""
+            doc_type = ""
+
         pc = Pinecone(api_key=pc_key)
         index = pc.Index(pc_idx)
         reader = PdfReader(local_path)
@@ -323,6 +356,9 @@ async def process_document_vectors(
                             "section_name": chunk["section_name"],
                             "workspace_id": workspace_id,
                             "document_id": file_id,
+                            "region": doc_region,
+                            "industry": doc_industry,
+                            "doc_type": doc_type,
                         },
                     }
                 )
@@ -367,10 +403,11 @@ async def process_document_vectors(
             }
         )
     finally:
-        try:
-            os.remove(local_path)
-        except OSError:
-            pass
+        if delete_after:
+            try:
+                os.remove(local_path)
+            except OSError:
+                pass
 
 
 def run_process_document_vectors_sync(
@@ -388,5 +425,6 @@ def run_process_document_vectors_sync(
             filename,
             feature_id,
             workspace_id,
+            delete_after=True,
         )
     )

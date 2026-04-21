@@ -113,7 +113,7 @@ If `currentUser` is missing, the dashboard shell renders:
   - `/api/audit/node2` (SerpAPI truncated intel)
   - **Falls back to per-user encrypted keys** if env keys are missing.
 - `backend/routers/vault.py`
-  - `/api/vault/upload`, `/api/vault/documents`, `/api/vault/documents/:id/url`
+  - `/api/vault/upload`, `/api/vault/documents`, `/api/vault/documents/:id/url`, `PUT /api/vault/documents/:id/tags`, `POST /api/vault/import-local` (admin)
   - Upload validates PDFs, extracts text, embeds (REST), and upserts to Pinecone (if configured).
 - `backend/routers/billing.py`
   - Stripe checkout + webhook/idempotency helpers (requires Stripe env vars).
@@ -126,6 +126,7 @@ If `currentUser` is missing, the dashboard shell renders:
 
 ### Services / Utilities
 - `backend/services/ai_service.py`: Internal AI helper logic used by some endpoints.
+- `backend/services/doc_classifier.py`: Heuristic filename tagging (`region` / `industry` / `doc_type`) for vault segmentation.
 - `backend/utils/s3_storage.py`: S3 helpers (only used if S3 vault is configured).
 - `backend/utils/websockets.py`: `ConnectionManager` for `/ws/dashboard` (ping/pong, `send_to_user` for chat push).
 
@@ -141,6 +142,7 @@ If `currentUser` is missing, the dashboard shell renders:
 ### Backend
 - Router: `backend/routers/vault.py` under `/api/vault/*`
 - Stores document metadata in DB (`ComplianceDocument`)
+- Supports optional segmentation tags on documents (`region`, `industry`, `doc_type`) used as Pinecone metadata filters during audit retrieval
 - Can upsert embeddings to Pinecone if keys are present (env or per-user secure settings where implemented)
 
 ---

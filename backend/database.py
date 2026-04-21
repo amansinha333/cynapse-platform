@@ -130,6 +130,23 @@ async def init_db():
                     await conn.execute(text(stmt))
                 except SQLAlchemyError:
                     pass
+            try:
+                d_info = await conn.execute(text("PRAGMA table_info(compliance_documents)"))
+                d_cols = {row[1] for row in d_info.fetchall()}
+            except SQLAlchemyError:
+                d_cols = set()
+            doc_migrations = [
+                ("region", "ALTER TABLE compliance_documents ADD COLUMN region VARCHAR DEFAULT ''"),
+                ("industry", "ALTER TABLE compliance_documents ADD COLUMN industry VARCHAR DEFAULT ''"),
+                ("doc_type", "ALTER TABLE compliance_documents ADD COLUMN doc_type VARCHAR DEFAULT ''"),
+            ]
+            for column_name, stmt in doc_migrations:
+                if column_name in d_cols:
+                    continue
+                try:
+                    await conn.execute(text(stmt))
+                except SQLAlchemyError:
+                    pass
         elif engine.dialect.name == "postgresql":
             for stmt in (
                 "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS role_title VARCHAR DEFAULT ''",
@@ -137,6 +154,9 @@ async def init_db():
                 "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT ''",
                 "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS budget VARCHAR DEFAULT ''",
                 "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS project_count INTEGER DEFAULT 0",
+                "ALTER TABLE compliance_documents ADD COLUMN IF NOT EXISTS region VARCHAR DEFAULT ''",
+                "ALTER TABLE compliance_documents ADD COLUMN IF NOT EXISTS industry VARCHAR DEFAULT ''",
+                "ALTER TABLE compliance_documents ADD COLUMN IF NOT EXISTS doc_type VARCHAR DEFAULT ''",
             ):
                 try:
                     await conn.execute(text(stmt))

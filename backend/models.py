@@ -139,6 +139,10 @@ class ComplianceDocument(Base):
     s3_key = Column(String, nullable=False, unique=True, index=True)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    # Optional metadata for retrieval segmentation (“virtual folders”)
+    region = Column(String, default="", index=True)
+    industry = Column(String, default="", index=True)
+    doc_type = Column(String, default="", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

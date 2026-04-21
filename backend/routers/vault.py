@@ -12,6 +12,7 @@ from database import get_db
 from models import ComplianceDocument, User
 from tenant import require_workspace_id
 from services.vault_ingest import process_document_vectors
+from services.doc_classifier import infer_tags_from_filename
 from utils.websockets import dashboard_manager
 
 logging.basicConfig(level=logging.INFO)
@@ -84,6 +85,9 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     feature_id: str = Form(default=""),
+    region: str = Form(default=""),
+    industry: str = Form(default=""),
+    doc_type: str = Form(default=""),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -106,12 +110,16 @@ async def upload_document(
     )
 
     object_key = f"local-pinecone-{file_id}"
+    inferred = infer_tags_from_filename(filename)
     doc = ComplianceDocument(
         id=file_id,
         filename=file.filename or "document.pdf",
         s3_key=object_key,
         uploaded_by=current_user.id,
         workspace_id=workspace_id,
+        region=(region or inferred.region).strip(),
+        industry=(industry or inferred.industry).strip(),
+        doc_type=(doc_type or inferred.doc_type).strip(),
     )
     db.add(doc)
     await db.commit()
@@ -138,6 +146,7 @@ async def upload_document(
         filename,
         feature_id,
         workspace_id,
+        delete_after=True,
     )
     return {
         "id": doc.id,
@@ -205,9 +214,110 @@ async def list_documents(
             "s3_key": d.s3_key,
             "uploaded_by": d.uploaded_by,
             "created_at": d.created_at.isoformat() if d.created_at else "",
+            "region": getattr(d, "region", "") or "",
+            "industry": getattr(d, "industry", "") or "",
+            "doc_type": getattr(d, "doc_type", "") or "",
         }
         for d in docs
     ]
+
+
+@router.put("/documents/{document_id}/tags")
+async def update_document_tags(
+    document_id: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    """Update segmentation tags for a document (DB only).
+
+    Note: existing Pinecone vectors keep their original metadata. To fully re-tag vectors,
+    re-ingest the document (delete + re-upload/import).
+    """
+    result = await db.execute(
+        select(ComplianceDocument).where(
+            ComplianceDocument.id == document_id,
+            ComplianceDocument.workspace_id == current_user.workspace_id,
+        )
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc.region = str(payload.get("region", getattr(doc, "region", "")) or "").strip()
+    doc.industry = str(payload.get("industry", getattr(doc, "industry", "")) or "").strip()
+    doc.doc_type = str(payload.get("doc_type", getattr(doc, "doc_type", "")) or "").strip()
+    await db.commit()
+    await db.refresh(doc)
+    return {
+        "id": doc.id,
+        "filename": doc.filename,
+        "region": getattr(doc, "region", "") or "",
+        "industry": getattr(doc, "industry", "") or "",
+        "doc_type": getattr(doc, "doc_type", "") or "",
+    }
+
+
+@router.post("/import-local")
+async def import_local_folder(
+    background_tasks: BackgroundTasks,
+    source_dir: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    """Bulk-register + ingest PDFs from a server-local directory.
+
+    This is designed for offline ingestion (not request-time RAG).
+    """
+    workspace_id = require_workspace_id(current_user)
+    source_dir = (source_dir or "").strip()
+    if not source_dir:
+        raise HTTPException(status_code=400, detail="source_dir is required")
+    if not os.path.isdir(source_dir):
+        raise HTTPException(status_code=400, detail="source_dir does not exist on server")
+
+    imported: list[dict] = []
+    # Limit to prevent accidental massive imports from wrong path.
+    max_files = int(os.getenv("VAULT_IMPORT_MAX_FILES", "2000"))
+    count = 0
+    for root, _dirs, files in os.walk(source_dir):
+        for fn in files:
+            if not fn.lower().endswith(".pdf"):
+                continue
+            count += 1
+            if count > max_files:
+                break
+            full_path = os.path.join(root, fn)
+            # Use a deterministic key per file path so repeated imports don't explode.
+            file_id = f"doc-{uuid.uuid4().hex[:12]}"
+            object_key = f"local-import-{file_id}"
+            tags = infer_tags_from_filename(fn)
+            doc = ComplianceDocument(
+                id=file_id,
+                filename=fn,
+                s3_key=object_key,
+                uploaded_by=current_user.id,
+                workspace_id=workspace_id,
+                region=tags.region,
+                industry=tags.industry,
+                doc_type=tags.doc_type,
+            )
+            db.add(doc)
+            imported.append(
+                {
+                    "id": file_id,
+                    "filename": fn,
+                    "region": tags.region,
+                    "industry": tags.industry,
+                    "doc_type": tags.doc_type,
+                }
+            )
+            # Ingest in background. We do not copy the PDF; it must remain accessible on disk.
+            background_tasks.add_task(process_document_vectors, full_path, file_id, fn, "", workspace_id, delete_after=False)
+        if count > max_files:
+            break
+
+    await db.commit()
+    return {"status": "processing", "imported": imported, "count": len(imported)}
 
 
 @router.get("/documents/{document_id}/url")

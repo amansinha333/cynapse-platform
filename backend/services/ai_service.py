@@ -96,6 +96,18 @@ def _get_client(api_key: str):
 
 def _build_prompt(title: str, description: str, prd_text: str, region: str, industry: str, custom_docs: str = "", web_intel: str = "") -> str:
     """Build a structured prompt from feature metadata."""
+    max_prd_chars = int(os.getenv("AI_PROMPT_PRD_CHARS", "9000"))
+    max_custom_chars = int(os.getenv("AI_PROMPT_CUSTOM_DOCS_CHARS", "9000"))
+    max_web_chars = int(os.getenv("AI_PROMPT_WEB_INTEL_CHARS", "2500"))
+    prd_text = (prd_text or "").strip()
+    custom_docs = (custom_docs or "").strip()
+    web_intel = (web_intel or "").strip()
+    if len(prd_text) > max_prd_chars:
+        prd_text = prd_text[:max_prd_chars].rstrip() + "\n\n[TRUNCATED: PRD exceeded prompt budget]"
+    if len(custom_docs) > max_custom_chars:
+        custom_docs = custom_docs[:max_custom_chars].rstrip() + "\n\n[TRUNCATED: Additional documents exceeded prompt budget]"
+    if len(web_intel) > max_web_chars:
+        web_intel = web_intel[:max_web_chars].rstrip() + "\n\n[TRUNCATED: Web intel exceeded prompt budget]"
     parts = [
         f"FEATURE TITLE: {title}",
         f"DESCRIPTION: {description}" if description else "",

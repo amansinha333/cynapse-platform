@@ -179,7 +179,7 @@ Frontend helpers in `src/utils/api.js`:
   - `PINECONE_API_KEY`
   - `PINECONE_INDEX`
   - `SEARCH_API_KEY`
-  - `AI_MODEL`
+  - `AI_MODEL` (default generative model: `gemini-2.5-flash`)
 - Optional integrations:
   - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*`, URLs
   - S3: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`

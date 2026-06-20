@@ -3,7 +3,20 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import os
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+# libpq/psycopg2 query params that asyncpg.connect() does not accept.
+_ASYNCPG_STRIP_QUERY_KEYS = frozenset(
+    {
+        "sslmode",
+        "channel_binding",
+        "sslcert",
+        "sslkey",
+        "sslrootcert",
+        "options",
+        "gssencmode",
+    }
+)
 
 def _is_test_env() -> bool:
     return bool(
@@ -40,12 +53,53 @@ def database_host_hint(url: str | None = None) -> str:
         return "(unparseable DATABASE_URL)"
 
 
-def _connect_args(url: str) -> dict:
+def _connect_args(url: str, *, ssl_required: bool = False) -> dict:
     """Managed Postgres hosts (Neon, Render, etc.) require TLS for asyncpg."""
     lower = url.lower()
-    if any(token in lower for token in ("neon.tech", "render.com", "vercel-storage.com")):
-        return {"ssl": True}
-    return {}
+    needs_ssl = ssl_required or any(
+        token in lower for token in ("neon.tech", "render.com", "vercel-storage.com")
+    )
+    return {"ssl": True} if needs_ssl else {}
+
+
+def _prepare_asyncpg_url(url: str) -> tuple[str, dict]:
+    """
+    Normalize DATABASE_URL for SQLAlchemy+asyncpg.
+
+    Neon and other hosts append ?sslmode=require to libpq URIs; asyncpg rejects
+    sslmode as a connect kwarg, so strip libpq-only query params and pass ssl=True.
+    """
+    raw = url.strip()
+    if raw.startswith("sqlite://") or raw.startswith("sqlite+aiosqlite://"):
+        return _normalize_async_url(raw), {}
+
+    if raw.startswith("postgres://"):
+        raw = "postgresql://" + raw[len("postgres://") :]
+
+    driver_prefix = "postgresql+asyncpg://"
+    if raw.startswith("postgresql+asyncpg://"):
+        parse_target = "postgresql://" + raw.split("://", 1)[1]
+    elif raw.startswith("postgresql://"):
+        parse_target = raw
+    else:
+        return _normalize_async_url(url), _connect_args(url)
+
+    parsed = urlparse(parse_target)
+    ssl_required = False
+    kept_query: list[tuple[str, str]] = []
+    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        lowered = key.lower()
+        if lowered == "sslmode":
+            if value.lower() in {"require", "verify-ca", "verify-full", "prefer", "true"}:
+                ssl_required = True
+            continue
+        if lowered in _ASYNCPG_STRIP_QUERY_KEYS:
+            continue
+        kept_query.append((key, value))
+
+    cleaned = urlunparse(parsed._replace(query=urlencode(kept_query)))
+    async_url = driver_prefix + cleaned.removeprefix("postgresql://")
+    return async_url, _connect_args(async_url, ssl_required=ssl_required)
 
 
 def _resolve_database_url() -> str:
@@ -62,7 +116,7 @@ def _resolve_database_url() -> str:
 
 
 DATABASE_URL = _resolve_database_url()
-ASYNC_DATABASE_URL = _normalize_async_url(DATABASE_URL)
+ASYNC_DATABASE_URL, _ASYNCPG_CONNECT_ARGS = _prepare_asyncpg_url(DATABASE_URL)
 
 _engine_kwargs: dict = {
     "echo": False,
@@ -75,7 +129,7 @@ if not _is_test_env():
 
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    connect_args=_connect_args(ASYNC_DATABASE_URL),
+    connect_args=_ASYNCPG_CONNECT_ARGS,
     **_engine_kwargs,
 )
 

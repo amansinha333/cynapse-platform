@@ -3,6 +3,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import os
+import ssl
+from functools import lru_cache
 from urllib.parse import urlparse
 
 def _is_test_env() -> bool:
@@ -40,13 +42,26 @@ def database_host_hint(url: str | None = None) -> str:
         return "(unparseable DATABASE_URL)"
 
 
-def _connect_args(url: str) -> dict:
-    """Managed Postgres hosts typically require TLS for asyncpg."""
+def _is_supabase_url(url: str) -> bool:
     lower = url.lower()
-    if any(
-        token in lower
-        for token in ("supabase.co", "supabase.com", "neon.tech", "render.com", "vercel-storage.com")
-    ):
+    return "supabase.co" in lower or "supabase.com" in lower
+
+
+@lru_cache(maxsize=1)
+def _supabase_ssl_context() -> ssl.SSLContext:
+    """Supabase pooler TLS may not verify against public CAs on all PaaS hosts."""
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def _connect_args(url: str) -> dict:
+    """Managed Postgres hosts require TLS; Supabase pooler needs relaxed cert verify."""
+    lower = url.lower()
+    if _is_supabase_url(url):
+        return {"ssl": _supabase_ssl_context()}
+    if any(token in lower for token in ("neon.tech", "render.com", "vercel-storage.com")):
         return {"ssl": True}
     return {}
 

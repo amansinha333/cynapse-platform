@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install --no-cache-dir -r requirements-render.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --limit-concurrency 15
+    startCommand: bash start.sh
     rootDir: backend
     envVars:
       - key: PYTHONUNBUFFERED

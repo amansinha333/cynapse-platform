@@ -140,10 +140,20 @@ class Base(DeclarativeBase):
     pass
 
 
+# Prevents concurrent create_all races when multiple uvicorn workers start together.
+_SCHEMA_INIT_LOCK_ID = 87234923
+
+
 async def init_db():
     """Create all tables if they don't exist."""
+    import models  # noqa: F401
+
     async with engine.begin() as conn:
-        import models  # noqa: F401
+        if engine.dialect.name == "postgresql":
+            await conn.execute(
+                text("SELECT pg_advisory_xact_lock(:lock_id)"),
+                {"lock_id": _SCHEMA_INIT_LOCK_ID},
+            )
         await conn.run_sync(Base.metadata.create_all)
         # Lightweight migration support for legacy SQLite deployments.
         if engine.dialect.name == "sqlite":

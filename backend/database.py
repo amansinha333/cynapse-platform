@@ -3,6 +3,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import os
+from urllib.parse import urlparse
 
 def _is_test_env() -> bool:
     return bool(
@@ -20,6 +21,34 @@ def _normalize_async_url(url: str) -> str:
     if raw.startswith("sqlite://") and "+aiosqlite" not in raw:
         return raw.replace("sqlite://", "sqlite+aiosqlite://", 1)
     return raw
+
+
+def database_host_hint(url: str | None = None) -> str:
+    """Safe host/db label for logs (never includes credentials)."""
+    raw = (url or DATABASE_URL).strip()
+    for prefix in ("postgresql+asyncpg://", "postgresql://", "postgres://"):
+        if raw.startswith(prefix):
+            raw = "postgresql://" + raw.split("://", 1)[1]
+            break
+    try:
+        parsed = urlparse(raw)
+        host = parsed.hostname or "unknown"
+        port = f":{parsed.port}" if parsed.port else ""
+        db = (parsed.path or "").lstrip("/") or "unknown"
+        return f"{host}{port}/{db}"
+    except Exception:
+        return "(unparseable DATABASE_URL)"
+
+
+def _connect_args(url: str) -> dict:
+    """Managed Postgres hosts typically require TLS for asyncpg."""
+    lower = url.lower()
+    if any(
+        token in lower
+        for token in ("supabase.co", "supabase.com", "neon.tech", "render.com", "vercel-storage.com")
+    ):
+        return {"ssl": True}
+    return {}
 
 
 def _resolve_database_url() -> str:
@@ -47,7 +76,11 @@ if not _is_test_env():
     # Keep connection footprint small on memory-constrained hosts (e.g. Render free tier).
     _engine_kwargs.update(pool_size=2, max_overflow=0)
 
-engine = create_async_engine(ASYNC_DATABASE_URL, **_engine_kwargs)
+engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    connect_args=_connect_args(ASYNC_DATABASE_URL),
+    **_engine_kwargs,
+)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

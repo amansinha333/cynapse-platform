@@ -46,7 +46,7 @@ _backend_dir = os.path.dirname(os.path.abspath(__file__))
 if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
-from database import get_db, init_db, async_session
+from database import get_db, init_db, async_session, database_host_hint
 from models import AuditEvent, AuditIntelligence, Epic, Feature, SecureSetting, User, Vendor, Workspace
 from auth import decode_token, get_current_user, validate_email, require_roles
 from tenant import require_workspace_id
@@ -165,7 +165,16 @@ DEFAULT_EPICS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_encryption_key_is_secure()
-    await init_db()
+    try:
+        await init_db()
+    except Exception as exc:
+        logger.error(
+            "Database startup failed: %s. DATABASE_URL host=%s — use a live Postgres URL "
+            "(Render cynapse-db connection string, or a valid Supabase project URI).",
+            exc,
+            database_host_hint(),
+        )
+        raise
     # Seed default data if tables are empty
     async with async_session() as session:
         ws_result = await session.execute(select(Workspace).where(Workspace.name == "Default Space"))

@@ -9,20 +9,31 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from jose import JWTError
+from datetime import datetime, timezone
+
 from auth import (
     create_refresh_token,
     decode_token,
     create_access_token,
+    decode_invite_token,
     get_password_hash,
     validate_email,
     validate_password_strength,
     verify_password,
 )
 from database import get_db
-from models import User, Workspace
+from models import User, Workspace, WorkspaceInvite
 from rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+def _invite_is_expired(invite: WorkspaceInvite) -> bool:
+    expires = invite.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    return expires < datetime.now(timezone.utc)
 
 
 class RegisterRequest(BaseModel):
@@ -40,6 +51,117 @@ class LoginRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    full_name: str = Field(min_length=2, max_length=120)
+    password: str
+
+
+@router.get("/invite-preview")
+async def invite_preview(token: str, db: AsyncSession = Depends(get_db)):
+    try:
+        payload = decode_invite_token(token)
+    except JWTError as exc:
+        raise HTTPException(status_code=400, detail="Invalid or expired invite link") from exc
+
+    invite_id = payload.get("jti")
+    invite = (
+        await db.execute(select(WorkspaceInvite).where(WorkspaceInvite.id == invite_id))
+    ).scalar_one_or_none()
+    if not invite or invite.accepted_at is not None:
+        raise HTTPException(status_code=400, detail="Invite link is no longer valid")
+    if invite.expires_at and _invite_is_expired(invite):
+        raise HTTPException(status_code=400, detail="Invite link has expired")
+
+    workspace = (
+        await db.execute(select(Workspace).where(Workspace.id == invite.workspace_id))
+    ).scalar_one_or_none()
+
+    return {
+        "email": payload.get("email"),
+        "role": payload.get("role"),
+        "workspace_id": invite.workspace_id,
+        "workspace_name": workspace.name if workspace else "",
+    }
+
+
+@router.post("/accept-invite")
+@limiter.limit("12/minute")
+async def accept_invite(
+    request: Request,
+    data: AcceptInviteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        payload = decode_invite_token(data.token)
+    except JWTError as exc:
+        raise HTTPException(status_code=400, detail="Invalid or expired invite link") from exc
+
+    invite_id = payload.get("jti")
+    email = str(payload.get("email", "")).strip().lower()
+    workspace_id = str(payload.get("workspace_id", "")).strip()
+    role = str(payload.get("role", "user")).strip() or "user"
+
+    if not email or not workspace_id or not invite_id:
+        raise HTTPException(status_code=400, detail="Malformed invite token")
+
+    invite = (
+        await db.execute(select(WorkspaceInvite).where(WorkspaceInvite.id == invite_id))
+    ).scalar_one_or_none()
+    if not invite or invite.accepted_at is not None:
+        raise HTTPException(status_code=400, detail="Invite link is no longer valid")
+    if invite.expires_at and _invite_is_expired(invite):
+        raise HTTPException(status_code=400, detail="Invite link has expired")
+    if invite.email != email:
+        raise HTTPException(status_code=400, detail="Invite email mismatch")
+
+    if not validate_password_strength(data.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 chars and include upper, lower, and number",
+        )
+
+    existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="User already exists")
+
+    workspace = (
+        await db.execute(select(Workspace).where(Workspace.id == workspace_id))
+    ).scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    user = User(
+        id=f"user-{uuid.uuid4().hex[:12]}",
+        email=email,
+        hashed_password=get_password_hash(data.password),
+        full_name=data.full_name.strip(),
+        role=role,
+        status="active",
+        workspace_id=workspace_id,
+    )
+    db.add(user)
+    invite.accepted_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    token = create_access_token(user.id, role=user.role)
+    refresh_token = create_refresh_token(user.id, role=user.role)
+    return {
+        "access_token": token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "status": user.status,
+            "avatar_url": user.avatar_url,
+            "workspace_id": user.workspace_id,
+        },
+    }
 
 
 @router.post("/register")

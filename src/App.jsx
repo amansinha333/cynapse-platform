@@ -33,6 +33,7 @@ const AuditLogView = React.lazy(() => import('./components/AuditLogView'));
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const VaultPage = React.lazy(() => import('./pages/VaultPage'));
 const OAuthCallback = React.lazy(() => import('./pages/OAuthCallback'));
+const AcceptInvitePage = React.lazy(() => import('./pages/AcceptInvite'));
 const SystemHealthPage = React.lazy(() => import('./pages/SystemHealthPage'));
 const BillingPage = React.lazy(() => import('./pages/BillingPage'));
 const Security = React.lazy(() => import('./pages/Security'));
@@ -205,6 +206,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/oauth-callback" element={<OAuthCallback />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/platform/governance" element={<Governance />} />
           <Route path="/platform/prioritization" element={<Prioritization />} />
           <Route path="/solutions/enterprise" element={<Enterprise />} />

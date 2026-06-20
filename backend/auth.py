@@ -44,6 +44,7 @@ SECRET_KEY = _resolve_jwt_secret()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "120"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "7"))
+INVITE_TOKEN_EXPIRE_DAYS = int(os.getenv("INVITE_TOKEN_EXPIRE_DAYS", "7"))
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$")
@@ -83,6 +84,34 @@ def create_refresh_token(subject: str, role: str = "user", expires_delta: Option
 
 def decode_token(token: str) -> dict:
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+def create_invite_token(
+    *,
+    email: str,
+    workspace_id: str,
+    role: str,
+    invited_by: str,
+    invite_id: str,
+) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(days=INVITE_TOKEN_EXPIRE_DAYS)
+    to_encode = {
+        "type": "workspace_invite",
+        "jti": invite_id,
+        "email": email.strip().lower(),
+        "workspace_id": workspace_id,
+        "role": role,
+        "invited_by": invited_by,
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_invite_token(token: str) -> dict:
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    if payload.get("type") != "workspace_invite":
+        raise JWTError("Invalid invite token type")
+    return payload
 
 
 async def get_current_user(

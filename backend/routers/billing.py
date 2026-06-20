@@ -143,19 +143,6 @@ async def stripe_webhook(request: Request):
             subscription_id = checkout_session.get("subscription", "")
             plan_tier = metadata.get("plan_tier", "Seed")
 
-            # Phase 2: Update Supabase organizations table (service role key only).
-            if organization_id:
-                try:
-                    from utils.supabase_client import get_supabase_admin
-
-                    supabase = get_supabase_admin()
-                    supabase.table("organizations").update(
-                        {"subscription_status": "active"}
-                    ).eq("id", organization_id).execute()
-                except Exception:
-                    # Don't fail webhook if Supabase update fails; Stripe retries anyway.
-                    pass
-
             if workspace_id:
                 ws = (
                     await session.execute(select(Workspace).where(Workspace.id == workspace_id))

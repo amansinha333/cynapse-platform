@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 """
-Reset a user's password for Cynapse API login + Supabase Auth.
-
-Updates:
-  - public.users.hashed_password (bcrypt, compatible with /api/auth/login)
-  - Supabase Auth user password (admin API)
-
-Requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in backend/.env
+Reset a user's password for Cynapse API login (Neon/Postgres users table).
 
 Usage (from repo root):
   backend\\.venv\\Scripts\\python.exe backend\\scripts\\reset_user_password.py
@@ -14,6 +8,7 @@ Usage (from repo root):
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -21,28 +16,32 @@ import sys
 from getpass import getpass
 from pathlib import Path
 
-import bcrypt
 from dotenv import load_dotenv
-from supabase import create_client
+from sqlalchemy import select
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_BACKEND_DIR))
 load_dotenv(_BACKEND_DIR / ".env", override=False)
 load_dotenv(override=False)
 
-_PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$")
+from auth import get_password_hash  # noqa: E402
+from database import async_session  # noqa: E402
+from models import User  # noqa: E402
 
+_PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$")
 logger = logging.getLogger(__name__)
 
 
-def _require_env(name: str) -> str:
-    value = (os.getenv(name, "") or "").strip()
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
-
-
-def _hash_password_bcrypt(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+async def _reset_password(email: str, password: str) -> str:
+    async with async_session() as session:
+        user = (
+            await session.execute(select(User).where(User.email == email))
+        ).scalar_one_or_none()
+        if not user:
+            raise RuntimeError(f"No user found for email {email!r}")
+        user.hashed_password = get_password_hash(password)
+        await session.commit()
+        return str(user.id)
 
 
 def main() -> int:
@@ -50,19 +49,14 @@ def main() -> int:
     logger.info(
         """
 ================================================================
-  CYNAPSE — RESET USER PASSWORD (Supabase + public.users)
+  CYNAPSE — RESET USER PASSWORD (Neon / users table)
 ================================================================
 """.strip()
     )
 
-    try:
-        supabase_url = _require_env("SUPABASE_URL")
-        service_role = _require_env("SUPABASE_SERVICE_ROLE_KEY")
-    except Exception as exc:
-        logger.error("Configuration error: %s", exc)
+    if not (os.getenv("DATABASE_URL") or "").strip():
+        logger.error("DATABASE_URL is required.")
         return 1
-
-    supabase = create_client(supabase_url, service_role)
 
     email = input("User email: ").strip().lower()
     if not email or "@" not in email:
@@ -76,44 +70,19 @@ def main() -> int:
         return 1
     if not _PASSWORD_RE.match(pw1):
         logger.error(
-            "Password must be at least 8 characters and include uppercase, lowercase, and a number "
-            "(same rules as the product API)."
+            "Password must be at least 8 characters and include uppercase, lowercase, and a number."
         )
         return 1
 
     try:
-        res = supabase.table("users").select("id,email").eq("email", email).limit(1).execute()
-        rows = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None) or []
-        if not rows:
-            logger.error("No row in public.users for email %r", email)
-            return 1
-        user_id = rows[0]["id"]
+        user_id = asyncio.run(_reset_password(email, pw1))
     except Exception as exc:
-        logger.error("Failed to look up user: %s", exc)
+        logger.error("%s", exc)
         return 1
 
-    hashed = _hash_password_bcrypt(pw1)
-
-    try:
-        supabase.table("users").update({"hashed_password": hashed}).eq("id", user_id).execute()
-    except Exception as exc:
-        logger.error("Failed to update public.users: %s", exc)
-        return 1
-
-    try:
-        supabase.auth.admin.update_user_by_id(
-            str(user_id),
-            {"password": pw1},
-        )
-    except Exception as exc:
-        logger.warning("public.users was updated but Supabase Auth update failed: %s", exc)
-        logger.warning(
-            "API login may work; Supabase-only flows may still use the old password."
-        )
-        return 1
-
-    logger.info("SUCCESS — Password updated for user id=%s (email domain redacted in logs).", user_id)
-    logger.info("Login URL: https://cynapse-platform.vercel.app/login")
+    login_url = (os.getenv("FRONTEND_URL") or "https://cynapse-platform.vercel.app").rstrip("/") + "/dashboard"
+    logger.info("SUCCESS — Password updated for user id=%s", user_id)
+    logger.info("Login URL: %s", login_url)
     return 0
 
 

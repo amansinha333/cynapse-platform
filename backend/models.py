@@ -183,6 +183,19 @@ class BillingWebhookEvent(Base):
     processed_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class WorkspaceInvite(Base):
+    __tablename__ = "workspace_invites"
+
+    id = Column(String, primary_key=True, index=True)
+    email = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    role = Column(String, default="user")
+    invited_by = Column(String, ForeignKey("users.id"), nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Conversation(Base):
     """Workspace-scoped DM thread (two members)."""
 

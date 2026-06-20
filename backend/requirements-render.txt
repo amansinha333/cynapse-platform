@@ -23,7 +23,6 @@ httpx
 authlib
 asyncpg
 langchain-text-splitters
-supabase
 resend
 sentry-sdk
 posthog

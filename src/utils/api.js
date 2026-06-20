@@ -231,6 +231,10 @@ export const runNode2 = async (payload, _keys = {}) => {
 // ---------------------------------------------------------------------------
 export const registerUser = (data) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) });
 export const loginUser = (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) });
+export const fetchInvitePreview = (token) =>
+  request(`/api/auth/invite-preview?token=${encodeURIComponent(token)}`);
+export const acceptInvite = (data) =>
+  request('/api/auth/accept-invite', { method: 'POST', body: JSON.stringify(data) });
 export const fetchCurrentUser = () => request('/api/users/me');
 export const fetchMyDataExport = () => request('/api/users/me/data-export');
 export const fetchPrivacySettings = () => request('/api/users/me/privacy-settings');

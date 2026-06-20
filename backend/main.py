@@ -169,8 +169,8 @@ async def lifespan(app: FastAPI):
         await init_db()
     except Exception as exc:
         logger.error(
-            "Database startup failed: %s. DATABASE_URL host=%s — use a live Postgres URL "
-            "(Render cynapse-db connection string, or a valid Supabase project URI).",
+            "Database startup failed: %s. DATABASE_URL host=%s — set a live Neon Postgres "
+            "connection string (Dashboard → Connection details → pooled URI).",
             exc,
             database_host_hint(),
         )

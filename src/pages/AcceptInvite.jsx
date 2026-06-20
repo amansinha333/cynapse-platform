@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import Logo, { LOGO_CLASS } from './components/ui/Logo';
-import { useProject } from './context/ProjectContext';
+import Logo, { LOGO_CLASS } from '../components/ui/Logo';
+import { useProject } from '../context/ProjectContext';
 import {
   acceptInvite,
   fetchInvitePreview,
   setAuthToken,
   setRefreshToken,
-} from './utils/api';
+} from '../utils/api';
 
 export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();

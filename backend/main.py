@@ -16,7 +16,6 @@ import hashlib
 import logging
 from datetime import datetime
 import httpx
-from pinecone import Pinecone
 from dotenv import load_dotenv
 # Explicitly load from backend/.env if it exists
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -29,7 +28,9 @@ load_dotenv(override=False)  # Fallback to cwd
 import sentry_sdk
 from posthog import Posthog
 
-sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=1.0)
+_sentry_dsn = (os.getenv("SENTRY_DSN") or "").strip()
+if _sentry_dsn:
+    sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.1)
 
 # PostHog: only initialize when a key is set (avoids 401 spam in logs on Render without POSTHOG_API_KEY)
 _posthog_key = (os.getenv("POSTHOG_API_KEY") or "").strip()
@@ -683,6 +684,8 @@ async def _run_agentic_hard_gate(
 
     proposed_text = f"Title: {feature_title}\nDescription: {feature_description}".strip()
     query_vector = fit_vector_dimension(await _gemini_embed_text(proposed_text, gemini_key), PINECONE_VECTOR_DIMENSION)
+    from pinecone import Pinecone
+
     pc = Pinecone(api_key=pinecone_key)
     index = pc.Index(pinecone_index)
     pinecone_filter: Any = pinecone_workspace_filter(workspace_id)

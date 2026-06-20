@@ -1,0 +1,5 @@
+# Optional Celery background worker (not needed for the API web process on Render).
+-r requirements-render.txt
+celery[redis]
+redis
+psycopg2-binary

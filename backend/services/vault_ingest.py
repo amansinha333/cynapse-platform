@@ -12,7 +12,6 @@ from typing import Any
 
 import httpx
 from PyPDF2 import PdfReader
-from pinecone import Pinecone
 from sqlalchemy import select
 from database import async_session as async_session_maker
 from ingest import recursive_split_with_parent_context
@@ -243,6 +242,8 @@ async def process_document_vectors(
             doc_region = ""
             doc_industry = ""
             doc_type = ""
+
+        from pinecone import Pinecone
 
         pc = Pinecone(api_key=pc_key)
         index = pc.Index(pc_idx)

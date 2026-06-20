@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import get_current_user
 from database import async_session, get_db
 from models import BillingWebhookEvent, User, Workspace
-from utils.supabase_client import get_supabase_admin
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 
@@ -147,6 +146,8 @@ async def stripe_webhook(request: Request):
             # Phase 2: Update Supabase organizations table (service role key only).
             if organization_id:
                 try:
+                    from utils.supabase_client import get_supabase_admin
+
                     supabase = get_supabase_admin()
                     supabase.table("organizations").update(
                         {"subscription_status": "active"}

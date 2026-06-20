@@ -1,5 +1,4 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -23,19 +22,6 @@ def _normalize_async_url(url: str) -> str:
     return raw
 
 
-def _normalize_sync_url(url: str) -> str:
-    raw = url.strip()
-    if raw.startswith("postgres://"):
-        raw = "postgresql://" + raw[len("postgres://") :]
-    if raw.startswith("postgresql+asyncpg://"):
-        return raw.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
-    if raw.startswith("postgresql://") and "+psycopg2" not in raw:
-        return raw.replace("postgresql://", "postgresql+psycopg2://", 1)
-    if raw.startswith("sqlite+aiosqlite://"):
-        return raw.replace("sqlite+aiosqlite://", "sqlite://", 1)
-    return raw
-
-
 def _resolve_database_url() -> str:
     # Priority: explicit DATABASE_URL (production/staging) -> sqlite only for tests.
     env_url = (os.getenv("DATABASE_URL", "") or "").strip()
@@ -51,16 +37,17 @@ def _resolve_database_url() -> str:
 
 DATABASE_URL = _resolve_database_url()
 ASYNC_DATABASE_URL = _normalize_async_url(DATABASE_URL)
-SYNC_DATABASE_URL = _normalize_sync_url(DATABASE_URL)
 
-engine = create_async_engine(
-    ASYNC_DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_recycle=280,
-)
-# Sync engine is kept for scripts/tools that require psycopg2 compatibility.
-sync_engine = create_engine(SYNC_DATABASE_URL, echo=False)
+_engine_kwargs: dict = {
+    "echo": False,
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
+}
+if not _is_test_env():
+    # Keep connection footprint small on memory-constrained hosts (e.g. Render free tier).
+    _engine_kwargs.update(pool_size=2, max_overflow=0)
+
+engine = create_async_engine(ASYNC_DATABASE_URL, **_engine_kwargs)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

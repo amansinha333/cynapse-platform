@@ -11,7 +11,6 @@ from auth import get_current_user, require_roles
 from database import get_db
 from models import ComplianceDocument, User
 from tenant import require_workspace_id
-from services.vault_ingest import process_document_vectors
 from services.doc_classifier import infer_tags_from_filename
 from utils.websockets import dashboard_manager
 
@@ -25,6 +24,12 @@ router = APIRouter(prefix="/api/vault", tags=["vault"])
 MAX_UPLOAD_BYTES = int(os.getenv("VAULT_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
 
 _celery_task = None
+
+
+async def _process_document_vectors_task(*args, **kwargs):
+    from services.vault_ingest import process_document_vectors
+
+    await process_document_vectors(*args, **kwargs)
 
 
 def _get_celery_task():
@@ -140,7 +145,7 @@ async def upload_document(
         return JSONResponse(status_code=202, content=body)
 
     background_tasks.add_task(
-        process_document_vectors,
+        _process_document_vectors_task,
         local_path,
         file_id,
         filename,
@@ -312,7 +317,7 @@ async def import_local_folder(
                 }
             )
             # Ingest in background. We do not copy the PDF; it must remain accessible on disk.
-            background_tasks.add_task(process_document_vectors, full_path, file_id, fn, "", workspace_id, delete_after=False)
+            background_tasks.add_task(_process_document_vectors_task, full_path, file_id, fn, "", workspace_id, delete_after=False)
         if count > max_files:
             break
 

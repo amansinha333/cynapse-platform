@@ -1,9 +1,5 @@
 import json
 import os
-import json
-import os
-from google import genai
-from google.genai import types
 import requests
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -91,6 +87,8 @@ You MUST respond in EXACTLY this JSON format with NO additional text or markdown
 
 def _get_client(api_key: str):
     """Return a new Gemini client."""
+    from google import genai
+
     return genai.Client(api_key=api_key)
 
 
@@ -136,6 +134,8 @@ def _safe_parse_json(text: str) -> dict:
 
 async def _generate_with_client(api_key: str, system_instruction: str, model_name: str, prompt: str) -> dict:
     """Helper to run generation using the new 1.0 client."""
+    from google.genai import types
+
     client = _get_client(api_key)
     # Using client.models.generate_content for the new SDK
     response = client.models.generate_content(

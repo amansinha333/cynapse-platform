@@ -1,32 +1,3 @@
-sqlalchemy[asyncio]
-aiosqlite
-fastapi
-uvicorn
-pydantic
-email-validator
-python-multipart
-google-genai
-requests
-python-dotenv
-passlib[bcrypt]==1.7.4
-# bcrypt 4.x breaks passlib 1.7.4 (AttributeError: bcrypt has no attribute __about__)
-bcrypt==3.2.2
-python-jose[cryptography]
-cryptography
-stripe
-boto3
-pinecone
-PyPDF2
-aiofiles
-httpx
-authlib
-psycopg2-binary
-asyncpg
-langchain-text-splitters
-supabase
-resend
-sentry-sdk
-posthog
-slowapi
-celery[redis]
-redis
+# Default backend deps (matches requirements-render.txt).
+# For local Celery worker: pip install -r requirements-worker.txt
+-r requirements-render.txt

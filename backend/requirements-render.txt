@@ -1,0 +1,30 @@
+# Slim production deps for Render free tier (512MB RAM).
+# Local dev / Celery worker: use requirements.txt instead.
+sqlalchemy[asyncio]
+aiosqlite
+fastapi
+uvicorn
+pydantic
+email-validator
+python-multipart
+google-genai
+requests
+python-dotenv
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+python-jose[cryptography]
+cryptography
+stripe
+boto3
+pinecone
+PyPDF2
+aiofiles
+httpx
+authlib
+asyncpg
+langchain-text-splitters
+supabase
+resend
+sentry-sdk
+posthog
+slowapi

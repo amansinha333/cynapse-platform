@@ -4,11 +4,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 
-import resend
-
 from auth import get_current_user
 from models import User
-from utils.supabase_client import get_supabase_admin
 
 
 router = APIRouter(prefix="/api/invites", tags=["invites"])
@@ -65,6 +62,8 @@ async def send_invite(payload: InviteRequest, current_user: User = Depends(get_c
         raise HTTPException(status_code=403, detail="Insufficient permissions to invite users")
 
     try:
+        from utils.supabase_client import get_supabase_admin
+
         supabase = get_supabase_admin()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Supabase admin client not configured: {exc}") from exc
@@ -114,6 +113,8 @@ async def send_invite(payload: InviteRequest, current_user: User = Depends(get_c
 
     # Send email via Resend
     try:
+        import resend
+
         resend.api_key = resend_api_key
         html = _render_invite_email(invite_url=invite_url, role=payload.role)
         resend.Emails.send(

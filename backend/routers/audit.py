@@ -4,9 +4,6 @@ import asyncio
 
 import requests
 from fastapi import APIRouter, Depends
-from google import genai
-from google.genai import types
-from pinecone import Pinecone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -99,7 +96,9 @@ async def _get_user_secret(db: AsyncSession, user_id: str, key_name: str) -> str
         return ""
 
 
-async def _gemini_client(db: AsyncSession, current_user: User) -> genai.Client:
+async def _gemini_client(db: AsyncSession, current_user: User):
+    from google import genai
+
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         api_key = await _get_user_secret(db, current_user.id, "gemini_api_key")
@@ -132,6 +131,8 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         return {"status": "Warning", "framework": "N/A", "rule_violated": "Missing project_description", "recommendation": "Provide project description"}
 
     try:
+        from google.genai import types
+
         client = await _gemini_client(db, current_user)
         query_vector: list[float] = []
         try:
@@ -156,6 +157,8 @@ async def node1_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         workspace_id = require_workspace_id(current_user)
         pinecone_key = os.getenv("PINECONE_API_KEY", "").strip() or await _get_user_secret(db, current_user.id, "pinecone_api_key")
         pinecone_index = os.getenv("PINECONE_INDEX", "").strip() or await _get_user_secret(db, current_user.id, "pinecone_index") or "cynapse-compliance"
+        from pinecone import Pinecone
+
         pc = Pinecone(api_key=pinecone_key)
         index = pc.Index(pinecone_index)
 
@@ -305,6 +308,8 @@ async def node2_audit(payload: dict, db: AsyncSession = Depends(get_db), current
         organic = data.get("organic_results", [])[:3]
         tiny_results = [{"title": item.get("title", ""), "snippet": item.get("snippet", "")} for item in organic]
         truncated_news = "\n".join([f"- {item['title']}: {item['snippet']}" for item in tiny_results])
+
+        from google.genai import types
 
         client = await _gemini_client(db, current_user)
         prompt = (

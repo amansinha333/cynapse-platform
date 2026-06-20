@@ -51,6 +51,11 @@ print_glb.cjs
 dump_hierarchy.mjs
 backend/tmp_smoke_phase4/
 
+# Tool / local artifacts
+.claude-flow/
+backend/uploads/
+backend/available_models.txt
+
 # Playwright
 /test-results/
 /playwright-report/

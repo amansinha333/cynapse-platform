@@ -150,21 +150,33 @@ function DeskScene() {
         );
       }
 
-      // 2) Face/mouth/teeth/skin: kill shiny speculars under HDR.
-      if (/(head|face|teeth|mouth|skin)/i.test(n)) {
+      // 2) Face/mouth/teeth/skin/hands: add a warm skin tone and kill shiny speculars.
+      if (/(head|face|teeth|mouth|skin|hand|arm|leg)/i.test(n)) {
         mats.forEach((m) =>
           setIf(m, (mm) => {
+            if (mm.color) mm.color.set("#ffcba4"); // Warm skin tone
             if ("roughness" in mm) mm.roughness = 0.8;
             if ("metalness" in mm) mm.metalness = 0.0;
           })
         );
       }
 
-      // 3) Clothes: deep Cynapse green, premium matte.
-      if (/(body|shirt|top|jacket|cloth)/i.test(n)) {
+      // 3) Hair/beard/eyebrows: brown.
+      if (/(hair|beard|eyebrow|lashes)/i.test(n)) {
         mats.forEach((m) =>
           setIf(m, (mm) => {
-            if (mm.color) mm.color.set("#042f1f");
+            if (mm.color) mm.color.set("#4a3b32"); // Dark brown
+            if ("roughness" in mm) mm.roughness = 0.9;
+            if ("metalness" in mm) mm.metalness = 0.0;
+          })
+        );
+      }
+
+      // 4) Clothes: Vibrant Cynapse green, premium matte.
+      if (/(body|shirt|top|jacket|cloth|pant|shoe|boot)/i.test(n)) {
+        mats.forEach((m) =>
+          setIf(m, (mm) => {
+            if (mm.color) mm.color.set("#10b981"); // Emerald green for visibility
             if ("roughness" in mm) mm.roughness = 0.9;
             if ("metalness" in mm) mm.metalness = 0.0;
           })

@@ -172,11 +172,44 @@ function DeskScene() {
         );
       }
 
-      // 4) Clothes: Vibrant Cynapse green, premium matte.
-      if (/(body|shirt|top|jacket|cloth|pant|shoe|boot)/i.test(n)) {
+      // 4) Top/Jacket/Shirt: Classic stylish dark navy/slate
+      if (/(shirt|top|jacket)/i.test(n)) {
         mats.forEach((m) =>
           setIf(m, (mm) => {
-            if (mm.color) mm.color.set("#10b981"); // Emerald green for visibility
+            if (mm.color) mm.color.set("#0f172a"); // Deep stylish navy
+            if ("roughness" in mm) mm.roughness = 0.85;
+            if ("metalness" in mm) mm.metalness = 0.0;
+          })
+        );
+      }
+
+      // 5) Pants/Bottoms
+      if (/(pant|bottom)/i.test(n)) {
+        mats.forEach((m) =>
+          setIf(m, (mm) => {
+            if (mm.color) mm.color.set("#1e293b"); // Charcoal/slate pants
+            if ("roughness" in mm) mm.roughness = 0.9;
+            if ("metalness" in mm) mm.metalness = 0.0;
+          })
+        );
+      }
+
+      // 6) Shoes
+      if (/(shoe|boot|foot)/i.test(n)) {
+        mats.forEach((m) =>
+          setIf(m, (mm) => {
+            if (mm.color) mm.color.set("#09090b"); // Black leather shoes
+            if ("roughness" in mm) mm.roughness = 0.4; // Slight shine for shoes
+            if ("metalness" in mm) mm.metalness = 0.1;
+          })
+        );
+      }
+
+      // 7) Generic cloth/body fallback (if mesh is just named 'body' or 'cloth')
+      if (/(body|cloth)/i.test(n) && !/(head|face|teeth|mouth|skin|hand|arm|leg|shirt|top|jacket|pant|bottom|shoe|boot|foot)/i.test(n)) {
+        mats.forEach((m) =>
+          setIf(m, (mm) => {
+            if (mm.color) mm.color.set("#0f172a"); // Classic dark navy
             if ("roughness" in mm) mm.roughness = 0.9;
             if ("metalness" in mm) mm.metalness = 0.0;
           })
